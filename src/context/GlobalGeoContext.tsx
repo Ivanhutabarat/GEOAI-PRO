@@ -12,12 +12,28 @@ export interface GeoDataStore {
   spatialData: any[];
 }
 
+export interface LogEntry {
+  id: string;
+  timestamp: string;
+  type: 'ERROR' | 'INFO' | 'WARN';
+  source: string;
+  message: string;
+  rawData?: any;
+}
+
 interface GlobalGeoContextType {
   globalData: GeoDataStore;
   updateModuleData: (moduleName: keyof GeoDataStore, rawText: string, parsedJson: any[]) => void;
   rawPayloads: Record<keyof GeoDataStore, string>;
   seismicMode: 'exploration' | 'mitigation';
   setSeismicMode: (mode: 'exploration' | 'mitigation') => void;
+  systemLogs: LogEntry[];
+  addLog: (log: Omit<LogEntry, 'id' | 'timestamp'>) => void;
+  clearLogs: () => void;
+  activeFileName: string;
+  setActiveFileName: (name: string) => void;
+  dataDimensions: '1D' | '2D' | '3D';
+  setDataDimensions: (dim: '1D' | '2D' | '3D') => void;
 }
 
 const defaultState: GeoDataStore = {
@@ -48,12 +64,32 @@ const GlobalGeoContext = createContext<GlobalGeoContextType>({
   rawPayloads: defaultRaw,
   seismicMode: 'exploration',
   setSeismicMode: () => {},
+  systemLogs: [],
+  addLog: () => {},
+  clearLogs: () => {},
+  activeFileName: "UNNAMED_DATATRACK",
+  setActiveFileName: () => {},
+  dataDimensions: '1D',
+  setDataDimensions: () => {},
 });
 
 export const GlobalGeoProvider = ({ children }: { children: ReactNode }) => {
   const [globalData, setGlobalData] = useState<GeoDataStore>(defaultState);
   const [rawPayloads, setRawPayloads] = useState<Record<keyof GeoDataStore, string>>(defaultRaw);
   const [seismicMode, setSeismicMode] = useState<'exploration' | 'mitigation'>('exploration');
+  const [systemLogs, setSystemLogs] = useState<LogEntry[]>([]);
+  const [activeFileName, setActiveFileName] = useState<string>("UNNAMED_DATATRACK");
+  const [dataDimensions, setDataDimensions] = useState<'1D' | '2D' | '3D'>('1D');
+
+  const addLog = (log: Omit<LogEntry, 'id' | 'timestamp'>) => {
+    setSystemLogs(prev => [...prev, {
+      ...log,
+      id: Math.random().toString(36).substring(2, 9),
+      timestamp: new Date().toLocaleTimeString()
+    }]);
+  };
+
+  const clearLogs = () => setSystemLogs([]);
 
   const updateModuleData = (moduleName: keyof GeoDataStore, rawText: string, parsedJson: any[]) => {
     setGlobalData(prev => ({ ...prev, [moduleName]: parsedJson }));
@@ -65,7 +101,7 @@ export const GlobalGeoProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <GlobalGeoContext.Provider value={{ globalData, updateModuleData, rawPayloads, seismicMode, setSeismicMode }}>
+    <GlobalGeoContext.Provider value={{ globalData, updateModuleData, rawPayloads, seismicMode, setSeismicMode, systemLogs, addLog, clearLogs, activeFileName, setActiveFileName, dataDimensions, setDataDimensions }}>
       {children}
     </GlobalGeoContext.Provider>
   );

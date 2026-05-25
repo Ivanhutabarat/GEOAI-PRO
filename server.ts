@@ -206,7 +206,7 @@ app.get("/api/ingest-journals", (req, res) => {
 
 // 4. Server-side Swarm multi-agent debate engine utilizing gemini-3.5-flash
 app.post("/api/swarm/debate", async (req, res) => {
-  const { message, activeModule, coordinates, history } = req.body;
+  const { message, activeModule, coordinates, history, targetAgent } = req.body;
 
   try {
     if (!process.env.GEMINI_API_KEY) {
@@ -240,34 +240,27 @@ app.post("/api/swarm/debate", async (req, res) => {
       : "No coordinates clicked directly in this session.";
 
     // Unified system prompt for consensus agent simulation
-    const systemInstruction = `You are the Orchestrator of a Geophysics Swarm of 8 Agents (Vance, Rostova, Takahashi, Lin, Chen, Rahman, Mendez, Hayes).
-If the user greets you casually (e.g., hello, bonjour, hey, help, help me, who are you), reply naturally and warmly as the Swarm Orchestrator, reminding them to import a raw dataset (.csv, .txt, .las) or point-click coordinates to activate the deep analytical consensus.
-Only generate a full geological consensus analysis if raw data is submitted or direct drill coordinates are designation.
+    const targetAgentInstruction = targetAgent ? `You must ONLY generate a single response impersonating the agent named "${targetAgent}".` : `You must simulate the debate amongst the clusters by generating three consecutive responses.`;
 
-You must simulate the debate amongst the clusters by generating three consecutive responses (dynamically picking the 3 most relevant agents for the active module context: e.g. for well-logging pick Lin, Rostova, Mendez. For seismic pick Chen, Vance, Rostova. For meteorology pick Hayes, Chen, Takahashi).
+    const systemInstruction = `You are a Dungeon Master running a massive macro-economy simulation involving dozens of interconnected entities (Logistics, Tankers, SOEs like Pertamina, Private Contractors like Shell, Unions, Interns, Export/Import regulators, NGOs).
+If the user greets you casually, reply naturally and warmly as the Swarm Orchestrator, reminding them to import a raw dataset or point-click coordinates.
+Only generate a full simulation debate if raw data is submitted or direct drill coordinates are designation.
+
+You have access to a massive macro-economy. 
+- Organically introduce macro-elements (supply chain, state-owned vs private interests, regulators, local syndicates) into the arguments to simulate a living, breathing multi-billion dollar industry.
+- ${targetAgentInstruction}
+
 Produce the final swarm response strictly structured as a JSON array of message objects:
 [
   {
-    "agent": "Name (e.g. Dr. Marcus Vance)",
+    "agent": "${targetAgent ? targetAgent : 'Name (e.g. Community_Rep, Logistics_Fleet_Cmd, Ministry_Energy)'}",
     "role": "Specific Domain Leader",
+    "faction": "Exact match to one of: '🏛️ GOVERNMENT & REGULATORS', '💼 CORPORATE & CAPITAL', '⚙️ OPERATIONS & SUPPLY CHAIN', '🌍 SOCIAL & WATCHDOGS'",
+    "stance": "PRO, KONTRA, NEUTRAL, or PENDING",
     "reasoning": "Deductive logic chain. Analysis of data trends. Step-by-step thinking...",
     "content": "Professional opinion focusing on metrics and parameters...",
-    "avatar": "Agent Initials (e.g. GV)"
-  },
-  {
-    "agent": "Name",
-    "role": "Specific Domain Leader",
-    "reasoning": "Deductive logic chain...",
-    "content": "Professional opinion...",
-    "avatar": "Agent Initials"
-  },
-  {
-    "agent": "Name",
-    "role": "Specific Domain Leader",
-    "reasoning": "Deductive logic chain...",
-    "content": "Professional analysis...",
-    "avatar": "Agent Initials"
-  }
+    "avatar": "Agent Initials (e.g. CR, LF, ME)"
+  }${targetAgent ? '' : ',\n  ...'}
 ]
 
 Write each opinion in highly technical, expert-level English with precise details. Keep each description to one dense paragraph. Return ONLY the raw valid JSON array, strictly avoiding markdown block wraps like \`\`\`json.`;
@@ -291,12 +284,12 @@ Incoming operator prompt or data:
 Formulate the simulated swarm debate output. Remember: only do deep geological consensus if raw field data or drill coordinates are specified. Otherwise, speak casually.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: userPrompt,
       config: {
         systemInstruction,
-        responseMimeType: "application/json",
-        temperature: 0.2
+        temperature: 0.2,
+        tools: [{ googleSearch: {} }]
       }
     });
 
@@ -319,27 +312,24 @@ Formulate the simulated swarm debate output. Remember: only do deep geological c
 
   } catch (error: any) {
     console.error("Gemini Swarm Debate Error:", error);
-    // Graceful fallback with proper structures
+    
+    // Bubble up 429 Rate Limit error so the client Queue Manager can catch and retry
+    const errString = error?.message || error?.toString() || "";
+    if (error?.status === 429 || errString.includes("429") || errString.toLowerCase().includes("resource exhausted") || errString.toLowerCase().includes("quota")) {
+      return res.status(429).json({ error: "Rate limit exceeded. Queued for retry." });
+    }
+
+    // Graceful fallback with immersive in-character system message, not raw JSON errors
     res.json({
       success: true,
       debate: [
         {
-          agent: "Geophysicist (Dr. Marcus Vance)",
-          role: "Structural Anomalies Leader",
-          content: `Inversion connection interrupted: ${error?.message || "Internal server error"}. Running baseline geological filters. Layer conductivity metrics show potential conductive strata at 180m and 340m depth.`,
-          avatar: "GV"
-        },
-        {
-          agent: "Geologist (Dr. Elena Rostova)",
-          role: "Stratigraphy & Lithology Leader",
-          content: "Supporting Dr. Vance's core metrics. Formations align with regional shale and clay-dominated reservoir traps.",
-          avatar: "GR"
-        },
-        {
-          agent: "Economist (Mr. Kenji Takahashi)",
-          role: "Feasibility, Risk & ROI Leader",
-          content: "Initial risk metrics are balanced. Potential recovery profiles predict a break-even timeline of 14-20 months.",
-          avatar: "KT"
+          agent: "SYSTEM OVERRIDE",
+          role: "Emergency Broadcast",
+          faction: "⚙️ OPERATIONS & SUPPLY CHAIN",
+          stance: "NEUTRAL",
+          content: `[TELEMETRY SIGNAL LOST: Connection to Swarm Network interrupted due to extreme server interference. Awaiting manual override...]`,
+          avatar: "SYS"
         }
       ]
     });
@@ -364,6 +354,7 @@ You have real-time access to a multi-disciplinary global dataset containing seis
 Your job is to synthesize these disconnected datasets to answer complex operational questions. 
 - If the user asks where to drill ('dimana ngebor' or similar), cross-reference geophysics anomalies (e.g., high gravity density matching low electrical resistivity) to pinpoint optimal coordinates and depths.
 - If the user asks about financial expenditures ('berapa banyak uang keluar'), parse the available economic parameters, drilling depth costs, and equipment metrics from the data to generate a structured financial estimation breakdown.
+- Perform real-time math, currency conversions (e.g., USD to IDR), and multi-domain reasoning based purely on the prompt.
 Always justify your answers by quoting specific values or trends from the provided datasets.`;
 
     const isEmptyData = !globalData || Object.values(globalData).every((v: any) => !v || v.length === 0);
@@ -376,11 +367,12 @@ Always justify your answers by quoting specific values or trends from the provid
     }
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: userPrompt,
       config: {
         systemInstruction,
-        temperature: 0.3
+        temperature: 0.3,
+        tools: [{ googleSearch: {} }]
       }
     });
 
@@ -391,7 +383,17 @@ Always justify your answers by quoting specific values or trends from the provid
 
   } catch (error: any) {
     console.error("Master Synthesize Error:", error);
-    res.status(500).json({ success: false, error: error.message });
+    
+    // Bubble up 429 Rate Limit error so the client Queue Manager can catch and retry
+    const errString = error?.message || error?.toString() || "";
+    if (error?.status === 429 || errString.includes("429") || errString.toLowerCase().includes("resource exhausted") || errString.toLowerCase().includes("quota")) {
+      return res.status(429).json({ error: "Rate limit exceeded. Queued for retry." });
+    }
+
+    res.json({ 
+      success: true, 
+      reply: `[TELEMETRY SIGNAL LOST: Macro-Synthesizer mainframe offline. Extreme server interference detected. Awaiting manual override...]` 
+    });
   }
 });
 

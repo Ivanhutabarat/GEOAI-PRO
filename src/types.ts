@@ -10,7 +10,8 @@ export enum GeoModule {
   GPR = 'gpr',
   METEO = 'meteo',
   AI_CONSULTANT = 'ai-consultant',
-  SIMULATION = 'simulation'
+  SIMULATION = 'simulation',
+  DIAGNOSTICS = 'diagnostics'
 }
 
 export type GeoFileType = 
@@ -32,6 +33,8 @@ export interface Agent {
   personality: string;
   memory: string[];
   status: 'active' | 'idle' | 'interacting';
+  faction?: string;
+  stance: 'PRO' | 'KONTRA' | 'NEUTRAL' | 'PENDING';
 }
 
 export interface SimulationEvent {

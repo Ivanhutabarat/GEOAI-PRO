@@ -14,6 +14,7 @@ import {
   Compass
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { useGlobalGeoContext } from '../../context/GlobalGeoContext';
 
 import UniversalIngestionPort from '../Shared/UniversalIngestionPort';
 
@@ -22,6 +23,7 @@ interface SpatialModuleProps {
 }
 
 export default function SpatialModule({ onInteractCoords }: SpatialModuleProps) {
+  const { rawPayloads, activeFileName, dataDimensions } = useGlobalGeoContext();
   const containerRef = useRef<HTMLDivElement>(null);
   const [showTerrain, setShowTerrain] = useState(true);
   const [showAnomalies, setShowAnomalies] = useState(true);
@@ -32,6 +34,37 @@ export default function SpatialModule({ onInteractCoords }: SpatialModuleProps) 
 
   // Maintain coordinates in local HUD
   const [selectedCoords, setSelectedCoords] = useState<{ x: number; y: number; z: number } | null>(null);
+  
+  const [anomalyDataState, setAnomalyDataState] = useState<any[]>([]);
+
+  useEffect(() => {
+    const raw = rawPayloads.spatialData;
+    if (!raw || !raw.trim()) {
+      setAnomalyDataState([]);
+      return;
+    }
+    const lines = raw.split('\n');
+    const parsedData = [];
+    let hasHeader = false;
+    for (let line of lines) {
+      line = line.trim();
+      if (!line || line.startsWith('#') || line.startsWith('~') || line.startsWith('//')) continue;
+      const parts = line.split(/[,;\s\t]+/).filter(Boolean);
+      if (!hasHeader && isNaN(Number(parts[0]))) {
+        hasHeader = true;
+        continue;
+      }
+      if (parts.length >= 4) {
+        parsedData.push({
+          x: Number(parts[0]),
+          y: Number(parts[1]),
+          z: Number(parts[2]),
+          fault: Number(parts[3])
+        });
+      }
+    }
+    setAnomalyDataState(parsedData);
+  }, [rawPayloads.spatialData]);
 
   // Sync state year value to ref for non-blocking animate-loop integration
   useEffect(() => {
@@ -98,24 +131,22 @@ export default function SpatialModule({ onInteractCoords }: SpatialModuleProps) 
     const anomalyGroup = new THREE.Group();
     const anomaliesList: THREE.Mesh[] = [];
 
-    const anomalyData = [
-      { x: -5, y: -2, z: -4, val: 24, col: 0xFF5722 },
-      { x: 6, y: -4, z: 4, val: -18, col: 0x00B4FF },
-      { x: 1, y: -1.5, z: 2, val: 42, col: 0xFFCC00 },
-    ];
-
-    anomalyData.forEach((an, index) => {
-      const anomalyGeom = new THREE.BoxGeometry(2.5, 4, 2.5);
+    anomalyDataState.forEach((an, index) => {
+      const height = Math.max(0.1, Math.abs(an.z));
+      const anomalyGeom = new THREE.BoxGeometry(1.5, height, 1.5);
+      
+      const col = an.fault > 0.8 ? 0xFF0000 : 0x00FF00;
+      
       const anomalyMat = new THREE.MeshPhongMaterial({ 
-        color: an.col, 
+        color: col, 
         transparent: true, 
         opacity: 0.65,
-        emissive: an.col,
+        emissive: col,
         emissiveIntensity: 0.4
       });
       const mesh = new THREE.Mesh(anomalyGeom, anomalyMat);
-      mesh.position.set(an.x, an.y, an.z);
-      mesh.userData = { id: `ANOMALY-${index + 1}`, value: an.val };
+      mesh.position.set(an.x, an.z / 2, an.y); // Set Position: [row.Grid_X, row.Elevation_Z / 2, row.Grid_Y]
+      mesh.userData = { id: `DATAPOINT-${index + 1}`, value: an.fault };
       anomalyGroup.add(mesh);
       anomaliesList.push(mesh);
     });
@@ -204,7 +235,7 @@ export default function SpatialModule({ onInteractCoords }: SpatialModuleProps) 
         container.removeChild(renderer.domElement);
       }
     };
-  }, [showTerrain, showAnomalies, onInteractCoords]);
+  }, [showTerrain, showAnomalies, onInteractCoords, anomalyDataState]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-10rem)] bg-[#1A1A1A] border border-[#333333] rounded-lg overflow-hidden">
@@ -213,7 +244,7 @@ export default function SpatialModule({ onInteractCoords }: SpatialModuleProps) 
             <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                     <MapIcon size={16} className="text-[#FF5722]" />
-                    <span className="text-xs font-bold uppercase font-mono tracking-tight text-white">Project_Spatial_Grid.tiff // 3D Modeling</span>
+                    <span className="text-xs font-bold uppercase font-mono tracking-tight text-white">{activeFileName} // DYNAMIC VIEWER</span>
                 </div>
                 <div className="h-4 w-px bg-[#333333]"></div>
                 <div className="flex items-center gap-2 text-[10px] text-[#888888]">
@@ -241,57 +272,70 @@ export default function SpatialModule({ onInteractCoords }: SpatialModuleProps) 
         </div>
 
         <div className="flex-1 flex overflow-hidden relative">
-            {/* 3D Viewport frame */}
-            <div className="flex-1 h-full relative">
-                <div ref={containerRef} className="w-full h-full cursor-pointer" />
-                
-                {/* Embedded raycast drilling selection coordinates popup */}
-                {selectedCoords && (
-                  <div className="absolute right-6 top-6 bg-black/80 border border-[#FF5722]/40 p-3 rounded shadow-xl font-mono text-[10px] space-y-1 block max-w-xs animate-fade-in z-20">
-                    <span className="text-[#FF5722] font-bold uppercase flex items-center gap-1">
-                      <Compass size={12} className="text-[#FF5722] animate-spin" />
-                      Active DrillCursor target
-                    </span>
-                    <div className="text-white/80">X: {selectedCoords.x.toFixed(3)}</div>
-                    <div className="text-white/80">Y: {selectedCoords.y.toFixed(3)}</div>
-                    <div className="text-white/80">Z: {selectedCoords.z.toFixed(3)} (Bore Depth)</div>
-                    <p className="text-[8.5px] text-[#555] italic leading-tight mt-1">Clicked coordinate dispatched instantly to multi-agent swarm discussion boards.</p>
-                  </div>
-                )}
+            {dataDimensions === '1D' ? (
+                <div className="flex-1 overflow-hidden relative flex flex-col items-center justify-center bg-[#111] border border-[#333] m-4">
+                    <span className="text-xl font-bold font-mono text-[#03A9F4] animate-pulse mb-2">Auto-Detected 1D Data Structure</span>
+                    <span className="text-sm font-mono text-[#888] mb-4">Rendering Profiler View inside Spatial context...</span>
+                    <div className="text-[10px] font-mono p-4 border border-[#444] bg-black text-gray-500">
+                        {anomalyDataState.length > 0 ? (
+                            anomalyDataState.map((d, i) => (
+                                <div key={i}>{Object.values(d).join(', ')}</div>
+                            )).slice(0, 10)
+                        ) : 'NO DATA'}
+                    </div>
+                </div>
+            ) : (
+                <div className="flex-1 h-full relative">
+                    <div ref={containerRef} className="w-full h-full cursor-pointer" />
+                    
+                    {/* Embedded raycast drilling selection coordinates popup */}
+                    {selectedCoords && (
+                      <div className="absolute right-6 top-6 bg-black/80 border border-[#FF5722]/40 p-3 rounded shadow-xl font-mono text-[10px] space-y-1 block max-w-xs animate-fade-in z-20">
+                        <span className="text-[#FF5722] font-bold uppercase flex items-center gap-1">
+                          <Compass size={12} className="text-[#FF5722] animate-spin" />
+                          Active DrillCursor target
+                        </span>
+                        <div className="text-white/80">X: {selectedCoords.x.toFixed(3)}</div>
+                        <div className="text-white/80">Y: {selectedCoords.y.toFixed(3)}</div>
+                        <div className="text-white/80">Z: {selectedCoords.z.toFixed(3)} (Bore Depth)</div>
+                        <p className="text-[8.5px] text-[#555] italic leading-tight mt-1">Clicked coordinate dispatched instantly to multi-agent swarm discussion boards.</p>
+                      </div>
+                    )}
 
-                {/* Left corner render diagnostic HUD */}
-                <div className="absolute left-6 bottom-16 space-y-1">
-                    <div className="bg-black/60 backdrop-blur-md p-3 border border-[#333333] rounded font-mono">
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-green-500 uppercase mb-1">
-                            <Zap size={10} className="text-green-500" />
-                            Render active
+                    {/* Left corner render diagnostic HUD */}
+                    <div className="absolute left-6 bottom-16 space-y-1">
+                        <div className="bg-black/60 backdrop-blur-md p-3 border border-[#333333] rounded font-mono">
+                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-green-500 uppercase mb-1">
+                                <Zap size={10} className="text-green-500" />
+                                Render active
+                            </div>
+                            <p className="text-sm font-bold text-white tracking-tighter">FPS: 60.0 // GL_MESH_TWIN</p>
                         </div>
-                        <p className="text-sm font-bold text-white tracking-tighter">FPS: 60.0 // GL_MESH_TWIN</p>
                     </div>
-                </div>
 
-                {/* Subsurface Phenomena Year Slide overlay */}
-                <div className="absolute inset-x-0 bottom-4 px-6 z-20">
-                  <div className="bg-[#111]/90 border border-[#333] p-3 rounded-lg flex items-center gap-4">
-                    <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase shrink-0">
-                      <Calendar size={14} className="text-[#FF5722]" />
-                      <span>Temporal Slide</span>
+                    {/* Subsurface Phenomena Year Slide overlay */}
+                    <div className="absolute inset-x-0 bottom-4 px-6 z-20">
+                      <div className="bg-[#111]/90 border border-[#333] p-3 rounded-lg flex items-center gap-4">
+                        <div className="flex items-center gap-2 text-xs font-mono font-bold uppercase shrink-0">
+                          <Calendar size={14} className="text-[#FF5722]" />
+                          <span>Temporal Slide</span>
+                        </div>
+                        <input 
+                          type="range" 
+                          min="2026" 
+                          max="2035" 
+                          step="1"
+                          value={timeIndex} 
+                          onChange={(e) => setTimeIndex(Number(e.target.value))}
+                          className="flex-1 accent-[#FF5722] bg-[#222] h-1.5 rounded cursor-pointer"
+                        />
+                        <div className="text-xs font-mono font-black text-white px-2.5 py-1 bg-black rounded border border-[#222]">
+                          YEAR {timeIndex}
+                        </div>
+                      </div>
                     </div>
-                    <input 
-                      type="range" 
-                      min="2026" 
-                      max="2035" 
-                      step="1"
-                      value={timeIndex} 
-                      onChange={(e) => setTimeIndex(Number(e.target.value))}
-                      className="flex-1 accent-[#FF5722] bg-[#222] h-1.5 rounded cursor-pointer"
-                    />
-                    <div className="text-xs font-mono font-black text-white px-2.5 py-1 bg-black rounded border border-[#222]">
-                      YEAR {timeIndex}
-                    </div>
-                  </div>
                 </div>
-            </div>
+            )}
 
             {/* Spatial Layers sidebar indices */}
             <div className="w-56 border-l border-[#333333] p-4 bg-[#111111]/90 space-y-6">
@@ -299,6 +343,8 @@ export default function SpatialModule({ onInteractCoords }: SpatialModuleProps) 
                   moduleName="spatialData" 
                   contextKey="spatialData" 
                   onParsed={(p) => console.log('spatial parsed', p)} 
+                  parserType="matrix"
+                  presetLog={`Grid_X,Grid_Y,Elevation_Z,Fault_Probability\n-5,-4,2,0.9\n0,2,4,0.3\n5,6,6,0.1`}
                 />
                 
                 <div>

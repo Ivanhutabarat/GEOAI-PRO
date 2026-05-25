@@ -9,8 +9,9 @@ import {
   Settings, 
   ShieldAlert 
 } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ScatterChart, Scatter, AreaChart, Area } from 'recharts';
 import UniversalIngestionPort from '../Shared/UniversalIngestionPort';
+import { useGlobalGeoContext } from '../../context/GlobalGeoContext';
 
 export default function GravityMagModule() {
   const [depthFilter, setDepthFilter] = useState<number>(1500);
@@ -18,43 +19,49 @@ export default function GravityMagModule() {
   const [noiseLevel, setNoiseLevel] = useState<number>(8);
   const [isComputing, setIsComputing] = useState(false);
   const [selectedStation, setSelectedStation] = useState<string | null>("STN-12");
+  const { rawPayloads } = useGlobalGeoContext();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Generate some station anomaly data
-  const defaultStationData = [
-    { name: 'STN-02', gravity: 48, mag: 240, elevation: 120 },
-    { name: 'STN-04', gravity: -24, mag: -110, elevation: 140 },
-    { name: 'STN-06', gravity: 98, mag: 480, elevation: 155 },
-    { name: 'STN-08', gravity: 15, mag: 95, elevation: 110 },
-    { name: 'STN-10', gravity: -75, mag: -390, elevation: 90 },
-    { name: 'STN-12', gravity: 115, mag: 590, elevation: 160 },
-    { name: 'STN-14', gravity: 85, mag: 410, elevation: 150 },
-    { name: 'STN-16', gravity: -10, mag: -40, elevation: 130 },
-  ];
-  const [stationData, setStationData] = useState(defaultStationData);
+  const [stationData, setStationData] = useState<any[]>([]);
 
   const presetLog = `# Gravity & Mag Survey Table
-# StationID, Gravity(mGal), Mag(nT), Elev(m)
-2, 48, 240, 120
-4, -24, -110, 140
-6, 98, 480, 155
-8, 15, 95, 110
-10, -75, -390, 90
-12, 115, 590, 160
-14, 85, 410, 150
-16, -10, -40, 130`;
+# Station, Longitude, Latitude, Magnetic_Anomaly_nT, Bouguer_Anomaly_mGal
+GRV-01, 105.301, -6.111, 45200.2, 45.2
+GRV-02, 105.302, -6.115, 45150.1, 42.1
+GRV-03, 105.305, -6.120, 45480.0, 98.4
+GRV-04, 105.310, -6.122, 45095.5, 15.0
+GRV-05, 105.315, -6.118, 44610.0, -75.0
+`
+
+  useEffect(() => {
+    const raw = rawPayloads.gravityData;
+    if (!raw || !raw.trim()) {
+      setStationData([]);
+      return;
+    }
+
+    const lines = raw.split('\n');
+    const parsedData: any[] = [];
+    for (let line of lines) {
+      line = line.trim();
+      if (!line || line.startsWith('#') || line.startsWith('~') || line.startsWith('//')) continue;
+      const parts = line.split(/[,;\s\t]+/).filter(Boolean);
+      if (parts.length >= 5) {
+        parsedData.push({
+          station: parts[0],
+          longitude: parseFloat(parts[1]) || 0,
+          latitude: parseFloat(parts[2]) || 0,
+          magnetic: parseFloat(parts[3]) || 0,
+          gravity: parseFloat(parts[4]) || 0
+        });
+      }
+    }
+    setStationData(parsedData);
+  }, [rawPayloads.gravityData]);
 
   const handleParsedData = (parsedData: any[]) => {
-    if (parsedData && parsedData.length > 0) {
-      const mapped = parsedData.map((row, i) => ({
-        name: `STN-${String(row[0] || (i+1)).padStart(2, '0')}`,
-        gravity: row[1] || 0,
-        mag: row[2] || 0,
-        elevation: row[3] || 100
-      }));
-      setStationData(mapped);
-    }
+    // Explicitly handled by effect above to meet specific prompt parsing requirement inside GravityMagnetic
   };
 
   // Draw simulated gravity contour map on Canvas
@@ -127,13 +134,13 @@ export default function GravityMagModule() {
       }
     });
 
-    // Draw survey station markers
+    // Draw survey station markers if data exists
     stationData.forEach((stn, idx) => {
-      const sx = (idx + 1) * (width / 9);
+      const sx = (idx + 1) * (width / (stationData.length + 1 || 1));
       const sy = height * 0.5 + Math.sin(idx * 2) * (height * 0.25);
       
       // Draw crosshair marker
-      ctx.strokeStyle = selectedStation === stn.name ? '#FF5722' : '#888';
+      ctx.strokeStyle = selectedStation === stn.station ? '#FF5722' : '#888';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(sx - 5, sy); ctx.lineTo(sx + 5, sy);
@@ -143,13 +150,13 @@ export default function GravityMagModule() {
       ctx.stroke();
 
       // Label background
-      ctx.fillStyle = selectedStation === stn.name ? '#FF5722' : 'rgba(0,0,0,0.6)';
+      ctx.fillStyle = selectedStation === stn.station ? '#FF5722' : 'rgba(0,0,0,0.6)';
       ctx.fillRect(sx - 18, sy + 8, 36, 12);
       
-      ctx.fillStyle = selectedStation === stn.name ? '#111' : '#fff';
+      ctx.fillStyle = selectedStation === stn.station ? '#111' : '#fff';
       ctx.font = '7px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(stn.name, sx, sy + 16);
+      ctx.fillText(stn.station, sx, sy + 16);
     });
 
   }, [depthFilter, gridDensity, noiseLevel, selectedStation]);
@@ -311,20 +318,35 @@ export default function GravityMagModule() {
             </div>
           </div>
 
-          {/* Station Bar Chart */}
-          <div className="geo-card">
-            <h3 className="text-xs uppercase font-mono font-bold tracking-widest text-[#888] mb-4">Anomaly Profile (Gravity vs Magnetics)</h3>
-            <div className="h-48 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stationData || []} onClick={(item) => item?.activeLabel && setSelectedStation(String(item.activeLabel))}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#222" />
-                  <XAxis dataKey="name" stroke="#555" fontSize={10} />
-                  <YAxis stroke="#555" fontSize={10} name="mGal" />
-                  <Tooltip contentStyle={{ backgroundColor: '#111', borderColor: '#333', color: '#fff' }} />
-                  <Bar dataKey="gravity" fill="#FF5722" radius={[2, 2, 0, 0]} name="Gravity (mGal)" />
-                  <Bar dataKey="mag" fill="#00B4FF" radius={[2, 2, 0, 0]} name="Magnetic (nT)" />
-                </BarChart>
-              </ResponsiveContainer>
+          {/* Dual Anomaly Charts */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="geo-card">
+              <h3 className="text-xs uppercase font-mono font-bold tracking-widest text-[#FF7300] mb-4">Bouguer Gravity Anomaly (mGal)</h3>
+              <div className="h-48 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={stationData || []} onClick={(item) => item?.activeLabel && setSelectedStation(String(item.activeLabel))}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#222" />
+                    <XAxis dataKey="station" stroke="#555" fontSize={10} />
+                    <YAxis stroke="#555" fontSize={10} domain={['auto', 'auto']} />
+                    <Tooltip contentStyle={{ backgroundColor: '#111', borderColor: '#333', color: '#fff' }} cursor={{fill: 'rgba(255,255,255,0.05)'}} />
+                    <Area type="monotone" dataKey="gravity" stroke="#FF7300" fill="#FF730033" name="Gravity (mGal)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="geo-card">
+              <h3 className="text-xs uppercase font-mono font-bold tracking-widest text-[#00C49F] mb-4">Magnetic Anomaly (nT)</h3>
+              <div className="h-48 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={stationData || []} onClick={(item) => item?.activeLabel && setSelectedStation(String(item.activeLabel))}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#222" />
+                    <XAxis dataKey="station" stroke="#555" fontSize={10} />
+                    <YAxis stroke="#555" fontSize={10} domain={['auto', 'auto']} />
+                    <Tooltip contentStyle={{ backgroundColor: '#111', borderColor: '#333', color: '#fff' }} cursor={{fill: 'rgba(255,255,255,0.05)'}} />
+                    <Area type="monotone" dataKey="magnetic" stroke="#00C49F" fill="#00C49F33" name="Magnetic (nT)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         </div>

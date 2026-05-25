@@ -1,109 +1,52 @@
-# GeoAI Pro: Deep Multi-Agent Swarm Intelligence & Geophysical Digital Twin Suite 🌍🌋
+# 🌍 GeoAI Pro: Multi-Dimensional Geophysics Intelligence Suite (v4.0)
 
-**GeoAI Pro** is a professional, full-stack geophysics exploration suite designed for raw log analysis, real-time 3D subsurface twin mapping, and automated AI swarm consensus modeling.
+![Proyek Status](https://img.shields.io/badge/Proyek_Status-Developing-00E676?style=for-the-badge&logo=statuspage&logoColor=white) ![Versi](https://img.shields.io/badge/Versi-4.0_alpha-00E5FF?style=for-the-badge&logo=codeigniter&logoColor=white) ![Otak AI](https://img.shields.io/badge/Otak_AI-Gemini_Pro_RAG-9D00FF?style=for-the-badge&logo=googlegemini&logoColor=white) ![Arsitektur](https://img.shields.io/badge/Arsitektur-Reactive_Swarm-FF0055?style=for-the-badge&logo=hive&logoColor=white) ![Komputasi](https://img.shields.io/badge/Komputasi-TitanCore_v2_Chamber-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white) ![Keamanan](https://img.shields.io/badge/Keamanan-Telemetry_Fail--Safe_Active-FF0000?style=for-the-badge&logo=shield&logoColor=white)
 
-Built during the global cloud space hackathon, GeoAI Pro represents a quantum leap in mineral exploration and reservoir risk profiling. By combining direct hardware-level sensor ingestion, local messaging telemetry, and Gemini-powered swarm orchestrations, we turn days of offline multidisciplinary debates into seconds of active, unified consensus.
-
----
-
-## 🚀 The Core Problem & Our Vision
-
-Deep subsurface drilling is an ultra-high-stakes gamble:
-1. **Siloed Science:** Physicists, structural geologists, and resource economists rarely speak the same format. Data from Seismic reflectives, Schlumberger soundings, and mineral core logs remain trapped in fragmented formats like `.segy`, `.las`, or `.csv`.
-2. **Analysis Latency:** Bringing together regional specialists to agree on deep sills, mudstone faults, and dry sandstone fractures takes weeks of manual paperwork.
-
-**GeoAI Pro solves this completely.** By combining high-fidelity WebGL digital twins with a **100+ multi-agent swarm intellect**, the platform performs automatic raw log ingestion, runs real-time inversion models, and compiles ironclad Prospect Reports instantly.
+GeoAI Pro is a mission-critical subsurface analytics suite that integrates autonomous AI swarms, advanced geology, macroeconomics, national-level politics, and supply chain logistics to model complex extraction risks in real-world scenarios. Going far beyond standard algorithmic geophysical tools, this Enterprise-Grade suite simulates a living, breathing multidimensional ecosystem, turning raw logs into actionable intelligence.
 
 ---
 
-## 🏛️ Swarm Intelligence Architecture
+## ⚡ CORE ARCHITECTURAL POWERHOUSES (TECHNICAL)
 
-Our platform utilizes an asynchronous consensus loop mapping three elite, hyper-focused specialist agent clusters to debate your data in parallel:
+The engine handles massive and highly irregular multi-format data matrices autonomously, routing intelligence with precision:
 
-```
-                [ Operator / Inbound Telemetry (.las, .csv) ]
-                                     │
-                                     ▼
-                      [ System Swarm Orchestrator ]
-                                     │
-         ┌───────────────────────────┼───────────────────────────┐
-         ▼                           ▼                           ▼
-  [ Geophysics Cluster ]      [ Geology Cluster ]     [ Economics Cluster ]
-  (Dr. Marcus Vance)          (Dr. Elena Rostova)     (Mr. Kenji Takahashi)
-  ├── Bedrock Inversion       ├── Lithology Horizon   ├── Drilling NPV Rate
-  ├── Wavelet Denoising       ├── Strata Faults       ├── Operational CAPEX
-  └── Apparent Resistivity    └── Pore Fluid Check    └── Risk Anomaly ROI
-         │                           │                           │
-         └───────────────────────────┼───────────────────────────┘
-                                     ▼
-                        [ Consolidated Consensus ]
-                                     │
-                                     ▼
-                      [ Generated Prospect Report ]
-```
-
-1. **Geophysics Cluster (Led by Dr. Marcus Vance):** Focused entirely on raw physics, signal-to-noise filters, 3D inversion modeling, and sound wave deconvolution.
-2. **Geology Cluster (Led by Dr. Elena Rostova):** Grounding Vance’s physics against lithological matrices, stratigraphic horizon boundaries, and ancient mineral zones.
-3. **Resource Economics Cluster (Led by Mr. Kenji Takahashi):** Translating subsurface anomalies into business NPV, ROI charts, local environment risk, and drilling-hazard profiles.
+*   **Universal Auto-Dimension Detection (The Engine):** The core intelligence refactors itself dynamically based on parsed raw physical data shapes (CSV/Text matrices). It automatically identifies 1D signals (Well Logs / Wiggle Traces), 2D representations (Resistivity Matrices), and 3D topographies (Volumetric Spatial Grids) without requiring user intervention.
+*   **Deterministic Unmounting (Saber-Error Architecture):** Designed for extreme resilience. If fundamentally incompatible data (e.g., a 1D trace string) is injected into a 3D computational module (like the Spatial Twin), the application does not trigger a runtime whiteout crash. Instead, the Three.js Canvas gracefully unmounts and renders an elegant, fallback vector chart representation.
+*   **Cross-Reference Validations:** The ingestion pipeline performs deep structural inspections. While it initially detects metadata headers (such as `.LAS` or `.SEGY` identifiers), it prioritizes the actual content structure grid to optimally route data payloads, logging internal warnings instead of halting execution upon detecting metadata paradoxes.
 
 ---
 
-## 💎 Features at a Glance
+## 🏛️ SWARM STAKEHOLDER SANDBOX (THE ARENA)
 
-### 1. Dual-Mode Data Ingestion Panel 📥
-- **Field Mode (Quick Paste):** High-contrast styled `<textarea>` with built-in templates. Allows geologists on rugged field rigs to paste comma-delimited vertical soundings or bedrock matrix readings directly.
-- **Lab Mode (Local Filereader):** Integration with HTML5 `FileReader`. Upload `.las`, `.csv`, or `.txt` logs to extract ASCII data instantly on the client side, populating graphs and sections in real-time.
+The Swarm Sandbox is more than a visualization—it is a dynamically generated, hyperscale political and economic simulation engine driven by synchronized LLM nodes.
 
-### 2. Live 2D Bedrock Resistivity Inversion Section 📈
-- Interactive grid blocks illustrating Wenner & Schlumberger active depths.
-- Uses heatmaps styled using classical geophysical palettes (Deep Blue Conductive Brines $\rightarrow$ Saturated Clay Greens $\rightarrow$ Quartz Reds).
-- Interactive tooltip layers tracking Chainage nodes.
-
-### 3. WhatsApp Baileys Telemetry Integration 📱
-- Powered by `@whiskeysockets/baileys` and local `useMultiFileAuthState`.
-- Node.js backend captures secure WhatsApp association events, compiles the verification stream to Base64 image tags, and streams live QR pairing codes directly to the UI.
-- Field crews can send raw logging attachments directly to the WhatsApp bot—the system catches the message, extracts the files, and feeds them to the AI debate.
-
-### 4. GraphRAG Augmented Memory 📚
-- Drag-and-drop research paper indexing to ground AI swarm interpretation directly against peer-reviewed academic literature.
+*   **Dynamic Faction Spawner (High Scalability):** Using an advanced UI, the LLM core orchestrator can organically "spawn" and animate dozens of targeted entities beyond the base 12 agents. As political shifts dictate, players like Pertamina, Shell, auxiliary SOEs, foreign private contractors, local workforce unions, interns, import/customs regulators, and on-ground syndicates (Ormas) join the simulation.
+*   **Retrieval-Augmented Generation (RAG) Grounding:** All AI arguments are strictly deterministic. The Swarm's intelligence relies extensively on simulated and archived real-world socio-economic impact studies, directly indexing historical conflict records (e.g., Lumpur Lapindo blowouts, Freeport divestment legislation, and the Wadas social conflicts).
+*   **Live Stance Matrix Board:** A dynamic 3-column UI matrix (🟢 PRO ALLIANCE | ⚪ NEUTRAL | 🔴 KONTRA ALLIANCE) visually tracks real-time lobbying. You watch agent profiles shift visually across faction arrays directly in response to corruption, negotiations, or threats invoked during the public debate cycles.
 
 ---
 
-## 🛠️ Stack & Engineering
+## 📂 NEW MODULE: "REFERENCE ARCHIVE & COMPLIANCE"
 
-- **Frontend:** React 19, Vite, Tailwind CSS, Lucide Icons, Recharts, Motion (React)
-- **Backend:** Express, Node.js, TSX runtime compiler
-- **LLM Engine:** `@google/genai` TypeScript SDK utilizing **`gemini-3.5-flash`** for structured JSON debate sequences
-- **Telecom:** `@whiskeysockets/baileys` multi-device engine, `qrcode`, `pino`
+An independent, highly secure archive to guarantee audit readiness for any generated simulation.
 
----
-
-## ⚙️ Environment Variables Setup
-
-Configure your local or production environment in `.env`:
-
-```env
-# Geophysics Swarm Accelerator key
-GEMINI_API_KEY=your_actual_gemini_api_key_here
-```
+*   **Intelligence Matrix UI:** An interface that immutably compiles all primary news sources, cited journals, and historical conflict contexts utilized by the Swarm during the live debate simulations.
+*   **"DOWNLOAD DOSSIER" Functionality:** At a click, regulators can export the entire compliance and risk landscape profile. The interface packages the data, creating a single downloadable CSV file containing a timeline of the full environmental and political stress test.
 
 ---
 
-## 🦾 Production Commands
+## 🛡️ SCALABILITY & TELEMETRY PROTOCOLS (THE BRAIN)
 
-To install, compile, and run the system with stand-alone node servers:
+Protecting the neural pathways from rate limits and HTTP floods natively on the edge via our custom architectural safeguards:
 
-```bash
-# 1. Install workspace dependencies
-npm install
+*   **`useApiQueue` Manager (Intelligent Rate Throttling):** A sequential request scheduling engine governs all asynchronous LLM calls. Bypassing parallel `Promise.all` bottlenecks, it strictly throttles massive multi-module outbound API requests with artificial buffer delays. It accurately respects Cloud/Free-Tier payload rate limits and automatically initiates cooldown-and-retry measures based precisely on `retryDelay` headers upon HTTP 429 events.
+*   **Telemetry Fail-Safe Protocol:** Code exceptions are quarantined. When an HTTP connection drop is undeniably fatal, the front-end isolates the raw JSON stack trace from standard rendering to avoid immersion breaking. Instead, it triggers an immersive, thematic character intervention:
 
-# 2. Build client bundle and compile backend server to single commonJS artifact
-npm run build
-
-# 3. Boot production server on Port 3000
-npm run start
-```
+    ```text
+    [TELEMETRY SIGNAL LOST: Connection to Dr. Vance interrupted due to extreme server interference. Awaiting manual override...]
+    ```
 
 ---
 
-*GeoAI Pro is designed for geoscientists, drill operators, and mining asset managers who want to reduce exploration uncertainty to zero.* 🚀
+Developed by **Ivan Krisopras Hutabarat** — Geophysical Engineering, Institut Teknologi Sumatera (ITERA). 
+Powered by the TitanCore Chamber v2 Infrastructure.

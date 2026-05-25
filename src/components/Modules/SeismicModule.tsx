@@ -17,7 +17,7 @@ import UniversalIngestionPort from '../Shared/UniversalIngestionPort';
 import { useGlobalGeoContext } from '../../context/GlobalGeoContext';
 
 export default function SeismicModule() {
-  const { seismicMode, setSeismicMode } = useGlobalGeoContext();
+  const { seismicMode, setSeismicMode, activeFileName, dataDimensions } = useGlobalGeoContext();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gain, setGain] = useState(5);
   const [filterFreq, setFilterFreq] = useState(25);
@@ -322,7 +322,7 @@ export default function SeismicModule() {
               <div className="flex items-center gap-2">
                 <Waves size={16} className="text-[#FF5722]" />
                 <span className="text-xs font-bold uppercase font-mono tracking-tight text-white">
-                  {seismicMode === 'exploration' ? 'Line_A24.sgy // Seismic Viewer' : 'Station_Alpha // Seismogram'}
+                  {activeFileName} // DYNAMIC VIEWER
                 </span>
               </div>
               <div className="h-4 w-px bg-[#333333]"></div>
@@ -344,7 +344,20 @@ export default function SeismicModule() {
           </div>
 
           <div className="flex-1 relative bg-black p-4 flex">
-              {seismicMode === 'exploration' ? (
+              {dataDimensions === '3D' ? (
+                <div className="w-full h-full flex flex-col items-center justify-center border border-[#333] bg-[#111] overflow-hidden">
+                    <span className="text-xl font-bold font-mono text-[#FF5722] animate-pulse">Auto-Detected 3D Data Structure</span>
+                    <span className="text-sm font-mono text-[#888] mt-2 mb-4">Rendering Seismic Profiler Fallback</span>
+                    <div className="w-11/12 h-1/2 mt-4 bg-black border border-[#222]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={mitigationData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#222" />
+                                <Line type="monotone" dataKey="amplitude" stroke="#FF5722" strokeWidth={1} dot={false} />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+              ) : seismicMode === 'exploration' ? (
                 <>
                   <canvas 
                       ref={canvasRef} 

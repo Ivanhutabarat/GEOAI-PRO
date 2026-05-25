@@ -3,9 +3,12 @@ import { Bot, Users, Sparkles, Shield, Cpu, Play, CheckCircle2, Globe2, Activity
 import { useGlobalGeoContext } from '../../context/GlobalGeoContext';
 import ReactMarkdown from 'react-markdown';
 
+import { useApiQueue } from '../../hooks/useApiQueue';
+
 export default function MasterGeoSynthesizer() {
   const [activeTab, setActiveTab] = useState<'roster' | 'parameters' | 'context' | 'chat'>('chat');
-  const { rawPayloads } = useGlobalGeoContext();
+  const { rawPayloads, addLog } = useGlobalGeoContext();
+  const { fetchQueued } = useApiQueue();
   const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'ai', content: string }[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [isSynthesizing, setIsSynthesizing] = useState(false);
@@ -27,7 +30,7 @@ export default function MasterGeoSynthesizer() {
     setIsSynthesizing(true);
 
     try {
-      const res = await fetch('/api/master-synthesize', {
+      const res = await fetchQueued('/api/master-synthesize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -40,10 +43,22 @@ export default function MasterGeoSynthesizer() {
       if (data.success) {
         setChatHistory([...newChat, { role: 'ai', content: data.reply }]);
       } else {
-        setChatHistory([...newChat, { role: 'ai', content: `*[SYSTEM ERROR]: ${data.error}*` }]);
+        addLog({
+          type: 'ERROR',
+          source: 'Synthesizer API',
+          message: data.error,
+          rawData: data
+        });
+        setChatHistory([...newChat, { role: 'ai', content: "*System calibration error. Diagnostics logged.*" }]);
       }
     } catch (err: any) {
-      setChatHistory([...newChat, { role: 'ai', content: `*[SYSTEM TIMEOUT]: Failed to connect to core. ${err?.message || ''}*` }]);
+      addLog({
+        type: 'ERROR',
+        source: 'Synthesizer API',
+        message: err.message || "Network Error",
+        rawData: err
+      });
+      setChatHistory([...newChat, { role: 'ai', content: "*System calibration error. Diagnostics logged.*" }]);
     } finally {
       setIsSynthesizing(false);
     }

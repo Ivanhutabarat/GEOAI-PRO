@@ -19,6 +19,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../../lib/utils';
+import { useGlobalGeoContext } from '../../context/GlobalGeoContext';
+import { useApiQueue } from '../../hooks/useApiQueue';
 
 interface SwarmRoomProps {
   activeModule: string;
@@ -36,6 +38,8 @@ interface DebateMessage {
 }
 
 export default function SwarmRoom({ activeModule, drillCoordinates, onClearCoordinates }: SwarmRoomProps) {
+  const { addLog } = useGlobalGeoContext();
+  const { fetchQueued, isProcessing, statusMessage } = useApiQueue();
   // Load conversation history from localStorage for physical persistence
   const [messages, setMessages] = useState<DebateMessage[]>(() => {
     try {
@@ -196,7 +200,7 @@ export default function SwarmRoom({ activeModule, drillCoordinates, onClearCoord
     setLoading(true);
 
     try {
-      const response = await fetch("/api/swarm/debate", {
+      const response = await fetchQueued("/api/swarm/debate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -234,11 +238,19 @@ export default function SwarmRoom({ activeModule, drillCoordinates, onClearCoord
       if (err.message === "Production Error: Gemini API Core Connection Failed.") {
         setApiErrorBanner(true);
       }
+      
+      addLog({
+        type: 'ERROR',
+        source: 'Swarm API',
+        message: err.message || "Interrupted API connection",
+        rawData: err
+      });
+
       setMessages(prev => [...prev, {
-        agent: "Security Core",
-        role: "Fail-Safe Protocol",
-        content: `Error linking to Swarm Inference: ${err.message || "Interrupted API connection"}. Loaded standby filters.`,
-        avatar: "SF",
+        agent: "SYSTEM OVERRIDE",
+        role: "Emergency Broadcast",
+        content: `[TELEMETRY SIGNAL LOST: Connection to Swarm Network interrupted due to extreme server interference. Awaiting manual override...]`,
+        avatar: "SYS",
         timestamp: new Date().toLocaleTimeString()
       }]);
     } finally {
@@ -485,10 +497,18 @@ export default function SwarmRoom({ activeModule, drillCoordinates, onClearCoord
           })}
         </AnimatePresence>
         
-        {loading && (
+        {loading && !isProcessing && (
           <div className="flex items-center gap-2 text-[#FF5722] font-mono text-[10px] py-1">
             <Loader2 size={12} className="animate-spin" />
             SWARM CONVENING INFERENCE NODES...
+          </div>
+        )}
+        {loading && isProcessing && (
+          <div className="flex items-center gap-2 text-orange-500 font-mono text-[10px] p-2 bg-orange-900/10 border border-orange-900/30 rounded py-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></div>
+            {statusMessage.toLowerCase().includes("rate limit") || statusMessage.toLowerCase().includes("cool") 
+              ? `Agent analyzing... (Waiting for satellite link / ${statusMessage})` 
+              : `Agent analyzing... (${statusMessage})`}
           </div>
         )}
       </div>

@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Activity, 
-  Layers, 
   Map as MapIcon, 
-  Database, 
   Zap, 
   Waves, 
   Wind, 
@@ -11,24 +9,19 @@ import {
   Gem, 
   Bot, 
   Upload, 
-  Settings, 
   LayoutDashboard,
   Search,
-  ChevronRight,
-  Filter,
-  Download,
-  AlertCircle,
-  CheckCircle2,
   Cpu,
   Unplug,
-  MessageSquareCode,
-  Users
+  Users,
+  Terminal,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { HashRouter, Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
 import { 
   GeoModule, 
-  GeoFile, 
-  AnalysisInsight 
+  GeoFile 
 } from './types';
 import { cn } from './lib/utils';
 
@@ -37,6 +30,7 @@ import SeismicModule from './components/Modules/SeismicModule';
 import WellLoggingModule from './components/Modules/WellLoggingModule';
 import SpatialModule from './components/Modules/SpatialModule';
 import SimulationModule from './components/Modules/SimulationModule';
+import SystemDiagnostics from './components/Modules/SystemDiagnostics';
 import MasterGeoSynthesizer from './components/Modules/AIConsultantModule';
 
 // Activated Spatial Modules
@@ -51,30 +45,35 @@ import SwarmRoom from './components/Shared/SwarmRoom';
 import RadarWidget from './components/Shared/RadarWidget';
 import FileUploader from './components/Shared/FileUploader';
 
+// Hooks
+import { useApiQueue } from './hooks/useApiQueue';
+
 // --- Components ---
 const SidebarItem = ({ 
   icon: Icon, 
   label, 
-  active, 
-  onClick 
+  to
 }: { 
   icon: any, 
   label: string, 
-  active: boolean, 
-  onClick: () => void 
+  to: string
 }) => (
-  <button
-    onClick={onClick}
-    className={cn(
+  <NavLink
+    to={to}
+    className={({ isActive }) => cn(
       "w-full flex items-center gap-3 px-4 py-3 transition-colors duration-200 border-l-2 text-left cursor-pointer",
-      active 
+      isActive 
         ? "bg-white/5 border-[#FF5722] text-white" 
         : "border-transparent text-[#888888] hover:text-white hover:bg-white/5"
     )}
   >
-    <Icon size={16} className={active ? "text-[#FF5722]" : ""} />
-    <span className="text-xs font-semibold tracking-tight">{label}</span>
-  </button>
+    {({ isActive }) => (
+      <>
+        <Icon size={16} className={isActive ? "text-[#FF5722]" : ""} />
+        <span className="text-xs font-semibold tracking-tight">{label}</span>
+      </>
+    )}
+  </NavLink>
 );
 
 const ModuleHeader = ({ title, subtitle }: { title: string, subtitle?: string }) => (
@@ -84,16 +83,15 @@ const ModuleHeader = ({ title, subtitle }: { title: string, subtitle?: string })
   </div>
 );
 
-// --- App ---
-export default function App() {
-  const [activeModule, setActiveModule] = useState<GeoModule>(GeoModule.DASHBOARD);
+// --- App Content ---
+function AppContent() {
+  const location = useLocation();
+  const activeModulePath = location.pathname === '/' ? GeoModule.DASHBOARD : location.pathname.slice(1) as GeoModule;
+
   const [files, setFiles] = useState<GeoFile[]>([]);
   const [isUploaderOpen, setIsUploaderOpen] = useState(false);
-  
-  // Track dynamic clicks on the Spatial 3D Map
   const [drillCoords, setDrillCoords] = useState<{ x: number; y: number; z: number } | null>(null);
 
-  // Monitor active system clock
   const [systemClock, setSystemClock] = useState("");
   useEffect(() => {
     setSystemClock(new Date().toLocaleTimeString());
@@ -102,6 +100,8 @@ export default function App() {
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  const { isProcessing, statusMessage, queueLength } = useApiQueue();
 
   const handleUpload = (newFiles: File[]) => {
     const geoFiles: GeoFile[] = newFiles.map(f => ({
@@ -126,7 +126,6 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-[#111111] text-white overflow-hidden font-sans">
-      
       {/* Sidebar navigation */}
       <aside className="w-56 border-r border-[#333333] flex flex-col pt-4 bg-[#141414] shrink-0">
         <div className="px-5 mb-6">
@@ -140,83 +139,30 @@ export default function App() {
         </div>
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto font-mono scrollbar-thin">
-          <SidebarItem 
-            icon={LayoutDashboard} 
-            label="Command Center" 
-            active={activeModule === GeoModule.DASHBOARD} 
-            onClick={() => setActiveModule(GeoModule.DASHBOARD)} 
-          />
+          <SidebarItem icon={LayoutDashboard} label="Command Center" to={`/${GeoModule.DASHBOARD}`} />
+          
           <div className="px-4 py-2">
             <span className="text-[9px] uppercase tracking-widest text-[#444] font-bold">Primary Arrays</span>
           </div>
-          <SidebarItem 
-            icon={Waves} 
-            label="Seismic (.segy)" 
-            active={activeModule === GeoModule.SEISMIC} 
-            onClick={() => setActiveModule(GeoModule.SEISMIC)} 
-          />
-          <SidebarItem 
-            icon={Activity} 
-            label="Well Logging (.las)" 
-            active={activeModule === GeoModule.WELL_LOGGING} 
-            onClick={() => setActiveModule(GeoModule.WELL_LOGGING)} 
-          />
-          <SidebarItem 
-            icon={MapIcon} 
-            label="Spatial Twin (.shp)" 
-            active={activeModule === GeoModule.SPATIAL} 
-            onClick={() => setActiveModule(GeoModule.SPATIAL)} 
-          />
+          <SidebarItem icon={Waves} label="Seismic (.segy)" to={`/${GeoModule.SEISMIC}`} />
+          <SidebarItem icon={Activity} label="Well Logging (.las)" to={`/${GeoModule.WELL_LOGGING}`} />
+          <SidebarItem icon={MapIcon} label="Spatial Twin (.shp)" to={`/${GeoModule.SPATIAL}`} />
           
           <div className="px-4 py-2">
             <span className="text-[9px] uppercase tracking-widest text-[#444] font-bold">Sensing Modules</span>
           </div>
-          <SidebarItem 
-            icon={Gem} 
-            label="Gravity & Magnetic" 
-            active={activeModule === GeoModule.GRAVITY_MAG} 
-            onClick={() => setActiveModule(GeoModule.GRAVITY_MAG)} 
-          />
-          <SidebarItem 
-            icon={Zap} 
-            label="Electrical & EM" 
-            active={activeModule === GeoModule.ELECTRICAL} 
-            onClick={() => setActiveModule(GeoModule.ELECTRICAL)} 
-          />
-          <SidebarItem 
-            icon={Unplug} 
-            label="GPR Waveform" 
-            active={activeModule === GeoModule.GPR} 
-            onClick={() => setActiveModule(GeoModule.GPR)} 
-          />
-          <SidebarItem 
-            icon={Thermometer} 
-            label="Rock Geochem" 
-            active={activeModule === GeoModule.GEOCHEM} 
-            onClick={() => setActiveModule(GeoModule.GEOCHEM)} 
-          />
-          <SidebarItem 
-            icon={Wind} 
-            label="Meteorology" 
-            active={activeModule === GeoModule.METEO} 
-            onClick={() => setActiveModule(GeoModule.METEO)} 
-          />
+          <SidebarItem icon={Gem} label="Gravity & Magnetic" to={`/${GeoModule.GRAVITY_MAG}`} />
+          <SidebarItem icon={Zap} label="Electrical & EM" to={`/${GeoModule.ELECTRICAL}`} />
+          <SidebarItem icon={Unplug} label="GPR Waveform" to={`/${GeoModule.GPR}`} />
+          <SidebarItem icon={Thermometer} label="Rock Geochem" to={`/${GeoModule.GEOCHEM}`} />
+          <SidebarItem icon={Wind} label="Meteorology" to={`/${GeoModule.METEO}`} />
           
           <div className="px-4 py-2">
             <span className="text-[9px] uppercase tracking-widest text-[#444] font-bold">Cognitive Lab</span>
           </div>
-          <SidebarItem 
-            icon={Bot} 
-            label="Master Geo-Synthesizer" 
-            active={activeModule === GeoModule.AI_CONSULTANT} 
-            onClick={() => setActiveModule(GeoModule.AI_CONSULTANT)} 
-          />
-          <SidebarItem 
-            icon={Users} 
-            label="Simulation Sandbox" 
-            active={activeModule === GeoModule.SIMULATION} 
-            onClick={() => setActiveModule(GeoModule.SIMULATION)} 
-          />
+          <SidebarItem icon={Bot} label="Master Geo-Synthesizer" to={`/${GeoModule.AI_CONSULTANT}`} />
+          <SidebarItem icon={Users} label="Simulation Sandbox" to={`/${GeoModule.SIMULATION}`} />
+          <SidebarItem icon={Terminal} label="Diagnostics Console" to={`/${GeoModule.DIAGNOSTICS}`} />
         </nav>
 
         {/* Embedded Radar Warning Scan Widget */}
@@ -264,14 +210,30 @@ export default function App() {
         <section className="flex-1 overflow-y-auto p-6 scrollbar-thin">
           <AnimatePresence mode="wait">
             <motion.div
-              key={activeModule}
+              key={activeModulePath}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.15 }}
               className="h-full"
             >
-              <ModuleSelector activeModule={activeModule} onDrillCoords={setDrillCoords} />
+              <Routes>
+                <Route path="/" element={<Navigate to={`/${GeoModule.DASHBOARD}`} replace />} />
+                <Route path={`/${GeoModule.DASHBOARD}`} element={<DashboardModule />} />
+                <Route path={`/${GeoModule.SEISMIC}`} element={<SeismicModule />} />
+                <Route path={`/${GeoModule.WELL_LOGGING}`} element={<WellLoggingModule />} />
+                <Route path={`/${GeoModule.SPATIAL}`} element={<SpatialModule onInteractCoords={setDrillCoords} />} />
+                <Route path={`/${GeoModule.GRAVITY_MAG}`} element={<GravityMagModule />} />
+                <Route path={`/${GeoModule.ELECTRICAL}`} element={<ElectricalEMModule />} />
+                <Route path={`/${GeoModule.GPR}`} element={<GPRModule />} />
+                <Route path={`/${GeoModule.GEOCHEM}`} element={<GeochemModule />} />
+                <Route path={`/${GeoModule.METEO}`} element={<MeteorologyModule />} />
+                <Route path={`/${GeoModule.AI_CONSULTANT}`} element={<MasterGeoSynthesizer />} />
+                <Route path={`/${GeoModule.SIMULATION}`} element={<SimulationModule />} />
+                <Route path={`/${GeoModule.DIAGNOSTICS}`} element={<SystemDiagnostics />} />
+                {/* Fallback routes for unbuilt components, just in case */}
+                <Route path="*" element={<div className="p-8 text-[#888] font-mono">Module UI Construction...</div>} />
+              </Routes>
             </motion.div>
           </AnimatePresence>
         </section>
@@ -284,15 +246,24 @@ export default function App() {
             <span>API_LATENCY: 110ms</span>
           </div>
           <div className="flex items-center gap-2 italic">
-            <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
-            <span>SWARM DEBATERS READY FOR INFERENCE</span>
+            {isProcessing ? (
+               <>
+                 <Loader2 size={10} className="text-[#FF5722] animate-spin" />
+                 <span className="text-[#FF5722] font-bold">{statusMessage.toUpperCase()} {queueLength > 0 && `(+${queueLength} IN QUEUE)`}</span>
+               </>
+            ) : (
+               <>
+                 <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
+                 <span>SWARM DEBATERS READY FOR INFERENCE</span>
+               </>
+            )}
           </div>
         </footer>
       </main>
 
       {/* Right panel docked Swarm Debate Meeting Room */}
       <SwarmRoom 
-        activeModule={activeModule} 
+        activeModule={activeModulePath as string} 
         drillCoordinates={drillCoords} 
         onClearCoordinates={() => setDrillCoords(null)} 
       />
@@ -307,38 +278,12 @@ export default function App() {
   );
 }
 
-function ModuleSelector({ activeModule, onDrillCoords }: { activeModule: GeoModule, onDrillCoords: (c: {x:number, y:number, z:number}) => void }) {
-  switch (activeModule) {
-    case GeoModule.DASHBOARD: 
-      return <DashboardModule />;
-    case GeoModule.SEISMIC: 
-      return <SeismicModule />;
-    case GeoModule.WELL_LOGGING: 
-      return <WellLoggingModule />;
-    case GeoModule.SPATIAL: 
-      return <SpatialModule onInteractCoords={onDrillCoords} />;
-    
-    // Activated Sensing Modules
-    case GeoModule.GRAVITY_MAG: 
-      return <GravityMagModule />;
-    case GeoModule.ELECTRICAL: 
-      return <ElectricalEMModule />;
-    case GeoModule.GPR: 
-      return <GPRModule />;
-    case GeoModule.GEOCHEM: 
-      return <GeochemModule />;
-    case GeoModule.METEO: 
-      return <MeteorologyModule />;
-      
-    // AI Cognitive Labs
-    case GeoModule.AI_CONSULTANT: 
-      return <MasterGeoSynthesizer />;
-    case GeoModule.SIMULATION: 
-      return <SimulationModule />;
-      
-    default: 
-      return <DashboardModule />;
-  }
+export default function App() {
+  return (
+    <HashRouter>
+      <AppContent />
+    </HashRouter>
+  );
 }
 
 // --- Dashboard Overview Component ---
@@ -348,7 +293,6 @@ function DashboardModule() {
       <ModuleHeader title="GEOAI PRO CENTRAL COMMAND" subtitle="Real-time multi-agent swarm digital twin modeling and processing." />
 
       <div className="grid grid-cols-12 gap-6">
-        {/* Core numbers */}
         <div className="col-span-12 grid grid-cols-4 gap-4">
           <DashboardStat label="Total Processed Arrays" value="2,482" change="+14%" description="Active survey segments" />
           <DashboardStat label="Swarm Concurrences" value="384" change="+22%" description="Inference agreements logged" />
@@ -356,7 +300,6 @@ function DashboardModule() {
           <DashboardStat label="Model Inversions Completed" value="82" change="+8" description="Denoised crosscuts" />
         </div>
 
-        {/* Pipeline overview */}
         <div className="col-span-8 space-y-4">
           <div className="p-5 bg-[#171718] border border-[#333] rounded-lg">
             <h3 className="text-xs uppercase font-bold tracking-widest text-[#888] mb-4 flex items-center gap-2 font-mono">
@@ -371,7 +314,6 @@ function DashboardModule() {
           </div>
         </div>
 
-        {/* Guidelines */}
         <div className="col-span-4 space-y-4">
           <div className="p-5 bg-gradient-to-br from-[#1C1C1E] to-[#251A15] border border-[#FF5722]/20 rounded-lg">
             <h3 className="text-xs uppercase font-bold text-white mb-2 flex items-center gap-1.5 font-mono">
@@ -426,3 +368,4 @@ function DashboardChannel({ name, step, progress, latency, completed = false }: 
     </div>
   );
 }
+
