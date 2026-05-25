@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
+import UniversalIngestionPort from '../Shared/UniversalIngestionPort';
+
 interface SpatialModuleProps {
   onInteractCoords?: (coords: { x: number; y: number; z: number }) => void;
 }
@@ -293,8 +295,14 @@ export default function SpatialModule({ onInteractCoords }: SpatialModuleProps) 
 
             {/* Spatial Layers sidebar indices */}
             <div className="w-56 border-l border-[#333333] p-4 bg-[#111111]/90 space-y-6">
+                <UniversalIngestionPort 
+                  moduleName="spatialData" 
+                  contextKey="spatialData" 
+                  onParsed={(p) => console.log('spatial parsed', p)} 
+                />
+                
                 <div>
-                   <h4 className="text-[9px] font-bold uppercase text-[#555555] tracking-widest mb-3">Subsurface Catalog</h4>
+                   <h4 className="text-[9px] font-bold uppercase text-[#555555] tracking-widest mb-3 mt-2">Subsurface Catalog</h4>
                    <div className="space-y-1.5">
                         <LayerItem icon={Mountain} label="Digital Elevation Model" active />
                         <LayerItem icon={Globe} label="Geostationary Imagery" />

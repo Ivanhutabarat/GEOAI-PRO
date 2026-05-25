@@ -9,6 +9,7 @@ import {
   Cpu 
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import UniversalIngestionPort from '../Shared/UniversalIngestionPort';
 
 export default function GeochemModule() {
   const [activeSample, setActiveSample] = useState<string>("SMP-104");
@@ -16,7 +17,7 @@ export default function GeochemModule() {
   const [elementalView, setElementalView] = useState<string>("oxides");
 
   // Rock core sample elemental composition (oxides & rare earth metals)
-  const samplesData: Record<string, {
+  const [samplesData, setSamplesData] = useState<Record<string, {
     name: string,
     depth: number,
     SiO2: number,
@@ -26,7 +27,7 @@ export default function GeochemModule() {
     CaO: number,
     alkalies: number, // Quartz (SiO2), Feldspar (Al2O3 + alkalies), Lithic (Fe + Mg + Ca)
     rareEarths: { element: string, ppm: number }[]
-  }> = {
+  }>>({
     "SMP-102": {
       name: "Upper Sandstone Segment",
       depth: 210,
@@ -53,6 +54,38 @@ export default function GeochemModule() {
         { element: "Nd", ppm: 14 }, { element: "Sm", ppm: 4.1 }, { element: "Eu", ppm: 1.1 },
         { element: "Gd", ppm: 3.9 }, { element: "Tb", ppm: 0.7 }, { element: "Dy", ppm: 3.8 }
       ]
+    }
+  });
+
+  const presetLog = `# Core Sample Oxide Table
+# SampleID, Depth, SiO2, Al2O3, Fe2O3, MgO, CaO, Alkalies
+SMP-108, 900, 38.4, 15.2, 18.3, 14.2, 12.1, 4.0
+SMP-110, 1050, 41.2, 11.5, 16.4, 15.5, 10.4, 3.8`;
+
+  const handleParsedData = (parsedData: any[]) => {
+    if (parsedData && parsedData.length > 0) {
+      const newSamples = { ...samplesData };
+      let lastAdded: string | null = null;
+      parsedData.forEach((row, i) => {
+        const sid = `SMP-${String(row[0] || (200 + i)).padStart(3, '0')}`;
+        lastAdded = sid;
+        newSamples[sid] = {
+          name: "Imported Core Sample",
+          depth: row[1] || 0,
+          SiO2: row[2] || 0,
+          Al2O3: row[3] || 0,
+          Fe2O3: row[4] || 0,
+          MgO: row[5] || 0,
+          CaO: row[6] || 0,
+          alkalies: row[7] || 0,
+          rareEarths: [
+            { element: "Nd", ppm: 10 }, { element: "Sm", ppm: 3 }, { element: "Eu", ppm: 1 },
+            { element: "Gd", ppm: 2 }, { element: "Tb", ppm: 0.5 }, { element: "Dy", ppm: 1.5 }
+          ]
+        };
+      });
+      setSamplesData(newSamples);
+      if (lastAdded) setActiveSample(lastAdded);
     }
   };
 
@@ -115,6 +148,12 @@ export default function GeochemModule() {
       <div className="grid grid-cols-12 gap-6">
         {/* Core Sample Selection Controls */}
         <div className="col-span-4 space-y-4">
+          <UniversalIngestionPort 
+            moduleName="geochem"
+            contextKey="geochemData"
+            onParsed={handleParsedData}
+            presetLog={presetLog}
+          />
           <div className="geo-card animate-fade-in">
             <h3 className="text-xs uppercase font-mono font-bold tracking-widest text-[#888] mb-4">Core Core Samples</h3>
             <div className="space-y-3">
@@ -238,7 +277,7 @@ export default function GeochemModule() {
 
             <div className="h-44 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={currentData.rareEarths}>
+                <BarChart data={currentData?.rareEarths || []}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#222" />
                   <XAxis dataKey="element" stroke="#555" fontSize={10} />
                   <YAxis stroke="#555" fontSize={10} label={{ value: 'PPM (ICP-MS)', angle: -90, position: 'insideLeft', fill: '#555', fontSize: 9 }} />

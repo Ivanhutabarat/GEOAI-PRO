@@ -77,6 +77,23 @@ export default function SwarmRoom({ activeModule, drillCoordinates, onClearCoord
   const [compiledReport, setCompiledReport] = useState<string | null>(null);
   const [isCompilingReport, setIsCompilingReport] = useState(false);
 
+  const [apiErrorBanner, setApiErrorBanner] = useState(false);
+
+  const swarmRoster = [
+    { avatar: 'GV', name: 'Dr. Marcus Vance', id: 'GV', roles: ['seismic', 'gravity-mag', 'electrical', 'gpr', 'dashboard'] },
+    { avatar: 'GR', name: 'Dr. Elena Rostova', id: 'GR', roles: ['seismic', 'well-logging', 'gravity-mag', 'geochem', 'electrical', 'gpr', 'dashboard'] },
+    { avatar: 'KT', name: 'Mr. Kenji Takahashi', id: 'KT', roles: ['meteorology', 'dashboard', 'gravity-mag', 'electrical', 'geochem'] },
+    { avatar: 'PT', name: 'Dr. Sarah Lin', id: 'PT', roles: ['well-logging', 'dashboard'] },
+    { avatar: 'SM', name: 'Dr. David Chen', id: 'SM', roles: ['seismic', 'meteorology', 'dashboard'] },
+    { avatar: 'GC', name: 'Dr. Aisha Rahman', id: 'GC', roles: ['geochem', 'dashboard'] },
+    { avatar: 'DE', name: 'Eng. Carlos Mendez', id: 'DE', roles: ['well-logging', 'seismic', 'dashboard'] },
+    { avatar: 'HSE', name: 'Capt. Robert Hayes', id: 'HSE', roles: ['meteorology', 'dashboard'] }
+  ];
+
+  const activeAgents = activeModule === 'ai-consultant' 
+    ? swarmRoster 
+    : swarmRoster.filter(a => a.roles.includes(activeModule));
+
   // Save chat to localStorage on change
   useEffect(() => {
     try {
@@ -192,6 +209,7 @@ export default function SwarmRoom({ activeModule, drillCoordinates, onClearCoord
       const data = await response.json();
 
       if (data.success && data.debate) {
+        setApiErrorBanner(false);
         // Stagger entrance slightly for UI realism, but completely powered by real API
         data.debate.forEach((item: any, idx: number) => {
           setTimeout(() => {
@@ -206,9 +224,16 @@ export default function SwarmRoom({ activeModule, drillCoordinates, onClearCoord
           }, idx * 250);
         });
       } else {
+        if (response.status === 500 && data.error === "API key not configured") {
+          setApiErrorBanner(true);
+          throw new Error("Production Error: Gemini API Core Connection Failed.");
+        }
         throw new Error(data.error || "Swarm node timeout");
       }
     } catch (err: any) {
+      if (err.message === "Production Error: Gemini API Core Connection Failed.") {
+        setApiErrorBanner(true);
+      }
       setMessages(prev => [...prev, {
         agent: "Security Core",
         role: "Fail-Safe Protocol",
@@ -348,7 +373,11 @@ export default function SwarmRoom({ activeModule, drillCoordinates, onClearCoord
           </div>
           <div>
             <h2 className="text-xs font-bold uppercase tracking-wider text-white">Swarm Cognitive Room</h2>
-            <p className="text-[9px] font-mono text-[#888] uppercase">100+ Cluster Agents // Active</p>
+            <div className="flex items-center gap-1 mt-0.5">
+              {activeAgents.map(a => (
+                <span key={a.id} className="text-[8px] bg-black border border-[#FF5722]/50 text-[#FF5722] px-1 rounded" title={a.name}>[{a.avatar}]</span>
+              ))}
+            </div>
           </div>
         </div>
         
@@ -404,6 +433,12 @@ export default function SwarmRoom({ activeModule, drillCoordinates, onClearCoord
         ref={scrollRef}
         className="flex-1 p-4 overflow-y-auto space-y-4 bg-[#0c0c0d] scrollbar-thin scrollbar-thumb-white/5"
       >
+        {apiErrorBanner && (
+          <div className="p-3 bg-red-500/10 border border-red-500 text-red-500 text-[10px] font-mono font-bold uppercase rounded flex items-center justify-between shadow-lg">
+            <span className="flex items-center gap-2"><AlertCircle size={12} />Production Error: Gemini API Core Connection Failed.</span>
+            <button onClick={() => setApiErrorBanner(false)} className="text-red-500 hover:text-white">X</button>
+          </div>
+        )}
         <AnimatePresence initial={false}>
           {messages.map((m, i) => {
             const isUser = m.avatar === "OP";

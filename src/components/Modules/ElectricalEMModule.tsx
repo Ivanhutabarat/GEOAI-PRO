@@ -255,7 +255,7 @@ export default function ElectricalEMModule() {
             <h3 className="text-xs uppercase font-mono font-bold tracking-widest text-[#888] mb-4">Schlumberger VES sounding profile (Real-time curve plotter)</h3>
             <div className="h-48 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={soundingData}>
+                <LineChart data={soundingData || []}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#222" />
                   <XAxis dataKey="spacing" label={{ value: 'AB/2 spacing (m)', position: 'insideBottom', offset: -5, fill: '#555', fontSize: 9 }} stroke="#555" fontSize={10} />
                   <YAxis scale="log" domain={['auto', 'auto']} label={{ value: 'Apparent Resistivity (Ω-m)', angle: -90, position: 'insideLeft', fill: '#555', fontSize: 9 }} stroke="#555" fontSize={10} />

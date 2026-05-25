@@ -316,7 +316,7 @@ export default function GravityMagModule() {
             <h3 className="text-xs uppercase font-mono font-bold tracking-widest text-[#888] mb-4">Anomaly Profile (Gravity vs Magnetics)</h3>
             <div className="h-48 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stationData} onClick={(item) => item?.activeLabel && setSelectedStation(String(item.activeLabel))}>
+                <BarChart data={stationData || []} onClick={(item) => item?.activeLabel && setSelectedStation(String(item.activeLabel))}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#222" />
                   <XAxis dataKey="name" stroke="#555" fontSize={10} />
                   <YAxis stroke="#555" fontSize={10} name="mGal" />

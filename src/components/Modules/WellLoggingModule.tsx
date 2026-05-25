@@ -24,6 +24,8 @@ import {
 } from 'recharts';
 import { cn } from '../../lib/utils';
 
+import UniversalIngestionPort from '../Shared/UniversalIngestionPort';
+
 // Mock Well Data
 const generateLogData = () => {
     const data = [];
@@ -73,7 +75,13 @@ export default function WellLoggingModule() {
         <div className="flex-1 flex overflow-hidden">
             {/* Log Track Selector */}
             <div className="w-48 border-r border-[#333333] p-4 bg-[#111111]/50 space-y-4">
-                <h4 className="text-[10px] font-bold uppercase text-[#555555] tracking-widest mb-4">Available Curves</h4>
+                <UniversalIngestionPort 
+                  moduleName="wellLoggingData" 
+                  contextKey="wellLoggingData" 
+                  onParsed={(p) => console.log('parsed', p)} 
+                />
+                
+                <h4 className="text-[10px] font-bold uppercase text-[#555555] tracking-widest mb-4 mt-6">Available Curves</h4>
                 <div className="space-y-1">
                     <CurveToggle label="Gamma Ray (GR)" color="#FF5722" active={selectedLogs.includes('gamma')} onClick={() => toggleLog('gamma')} />
                     <CurveToggle label="Resistivity (RES)" color="#4CAF50" active={selectedLogs.includes('resistivity')} onClick={() => toggleLog('resistivity')} />
@@ -101,7 +109,7 @@ export default function WellLoggingModule() {
                 {selectedLogs.includes('gamma') && (
                     <LogTrack label="Gamma Ray" unit="GAPI" color="#FF5722">
                         <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={data} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                            <AreaChart data={data || []} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#222" horizontal={true} vertical={false} />
                                 <XAxis type="number" hide domain={[0, 150]} />
                                 <YAxis dataKey="depth" type="number" hide domain={['auto', 'auto']} reversed />
@@ -116,7 +124,7 @@ export default function WellLoggingModule() {
                 {selectedLogs.includes('resistivity') && (
                     <LogTrack label="Resistivity" unit="OHMM" color="#4CAF50">
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={data} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                            <LineChart data={data || []} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#222" horizontal={true} vertical={false} />
                                 <XAxis type="number" scale="log" hide domain={[0.1, 100]} />
                                 <YAxis dataKey="depth" type="number" hide domain={['auto', 'auto']} reversed />
@@ -130,7 +138,7 @@ export default function WellLoggingModule() {
                 {selectedLogs.includes('density') && (
                     <LogTrack label="Density" unit="G/CC" color="#03A9F4">
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={data} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                            <LineChart data={data || []} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#222" horizontal={true} vertical={false} />
                                 <XAxis type="number" hide domain={[2.0, 3.0]} />
                                 <YAxis dataKey="depth" type="number" hide domain={['auto', 'auto']} reversed />

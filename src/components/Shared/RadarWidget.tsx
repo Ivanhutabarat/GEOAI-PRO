@@ -1,13 +1,74 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircle, ShieldAlert, Waves } from 'lucide-react';
+import { AlertCircle, ShieldAlert, Waves, Activity } from 'lucide-react';
+import { useGlobalGeoContext } from '../../context/GlobalGeoContext';
 
 export default function RadarWidget() {
+  const { seismicMode } = useGlobalGeoContext();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [lastEvent, setLastEvent] = useState({
     title: "NORMAL STATUS",
     desc: "No anomalies detected",
-    time: "NOW"
+    time: "NOW",
+    level: "normal"
   });
+  
+  const [alerts, setAlerts] = useState<any[]>([
+    { r: 20, th: 1.2, text: "TEM-04", level: "normal" },
+  ]);
+
+  useEffect(() => {
+    // Reset standard alerts based on mode switch
+    if (seismicMode === 'exploration') {
+      setLastEvent({ title: "GEOLOGIC SCAN", desc: "Mapping static structures", time: "NOW", level: "normal" });
+      setAlerts([
+        { r: 25, th: 1.5, text: "SALT DOME", level: "normal" },
+        { r: 40, th: 3.2, text: "FAULT LINE", level: "normal" },
+      ]);
+    } else {
+      setLastEvent({ title: "PASSIVE LISTENING", desc: "Awaiting tremor activity", time: "NOW", level: "normal" });
+      setAlerts([
+        { r: 15, th: 0.5, text: "STATION A", level: "normal" },
+        { r: 45, th: 2.1, text: "STATION B", level: "normal" },
+      ]);
+    }
+  }, [seismicMode]);
+
+  useEffect(() => {
+    const handleAnomaly = (e: any) => {
+      const { depth, peak } = e.detail;
+      setLastEvent({
+        title: "BRIGHT-SPOT DETECTED",
+        desc: `Depth ${depth}m / Amp ${peak}`,
+        time: new Date().toLocaleTimeString(),
+        level: "warning"
+      });
+      setAlerts(prev => [
+        ...prev,
+        { r: Math.random() * 30 + 10, th: Math.random() * Math.PI * 2, text: "RESERVOIR", level: "warning" }
+      ]);
+    };
+
+    const handleTremor = (e: any) => {
+      const { magnitude, maxAmp } = e.detail;
+      setLastEvent({
+        title: `TREMOR DETECTED: [Mag ${magnitude}]`,
+        desc: `High amplitude S-waves parsed (Amp ${maxAmp.toFixed(1)})`,
+        time: new Date().toLocaleTimeString(),
+        level: "critical"
+      });
+      setAlerts(prev => [
+        ...prev,
+        { r: Math.random() * 20 + 20, th: Math.random() * Math.PI * 2, text: "EPICENTER", level: "critical" }
+      ]);
+    };
+
+    window.addEventListener('geoai:seismic-anomaly', handleAnomaly);
+    window.addEventListener('geoai:tremor-event', handleTremor);
+    return () => {
+      window.removeEventListener('geoai:seismic-anomaly', handleAnomaly);
+      window.removeEventListener('geoai:tremor-event', handleTremor);
+    };
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -20,21 +81,14 @@ export default function RadarWidget() {
     const radius = center - 5;
     let angle = 0;
 
-    // Simulated alerts rotation
-    const alerts = [
-      { r: radius * 0.45, th: 1.2, text: "TEM-04", level: "critical" },
-      { r: radius * 0.75, th: 4.2, text: "TREM-A", level: "warning" },
-      { r: radius * 0.25, th: 2.8, text: "MET-B3", level: "normal" }
-    ];
-
     let timer: any;
     const drawRadar = () => {
       // Semi-transparent overlay for trailing sweep effect
-      ctx.fillStyle = 'rgba(10, 10, 10, 0.15)';
+      ctx.fillStyle = seismicMode === 'mitigation' ? 'rgba(10, 0, 0, 0.15)' : 'rgba(0, 10, 0, 0.15)';
       ctx.fillRect(0, 0, size, size);
 
       // Radar circles
-      ctx.strokeStyle = 'rgba(255, 87, 34, 0.15)';
+      ctx.strokeStyle = seismicMode === 'mitigation' ? 'rgba(255, 0, 0, 0.15)' : 'rgba(0, 255, 0, 0.15)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.arc(center, center, radius, 0, Math.PI * 2);
@@ -55,9 +109,9 @@ export default function RadarWidget() {
       // Draw alerts on radar target grid
       alerts.forEach((aln) => {
         const ax = center + aln.r * Math.cos(aln.th);
-        const ay = center + aln.r * Math.sin(aln.th);
+        const ay = center + Math.abs(aln.r) * Math.sin(aln.th); // ensure safe bounds
 
-        ctx.fillStyle = aln.level === 'critical' ? '#EF4444' : (aln.level === 'warning' ? '#ffcc00' : '#4ADE80');
+        ctx.fillStyle = aln.level === 'critical' ? '#EF4444' : (aln.level === 'warning' ? '#ffcc00' : (seismicMode === 'mitigation' ? '#EF4444' : '#4ADE80'));
         ctx.beginPath();
         ctx.arc(ax, ay, 3, 0, Math.PI * 2);
         ctx.fill();
@@ -76,8 +130,8 @@ export default function RadarWidget() {
       const sweepY = center + radius * Math.sin(angle);
       
       const grad = ctx.createLinearGradient(center, center, sweepX, sweepY);
-      grad.addColorStop(0, 'rgba(255, 87, 34, 0.05)');
-      grad.addColorStop(1, 'rgba(255, 87, 34, 0.6)');
+      grad.addColorStop(0, seismicMode === 'mitigation' ? 'rgba(255, 0, 0, 0.05)' : 'rgba(0, 255, 0, 0.05)');
+      grad.addColorStop(1, seismicMode === 'mitigation' ? 'rgba(255, 0, 0, 0.6)' : 'rgba(0, 255, 0, 0.6)');
 
       ctx.strokeStyle = grad;
       ctx.lineWidth = 1.8;
@@ -86,67 +140,44 @@ export default function RadarWidget() {
       ctx.lineTo(sweepX, sweepY);
       ctx.stroke();
 
-      angle += 0.035;
+      angle += seismicMode === 'mitigation' ? 0.05 : 0.02;
       timer = requestAnimationFrame(drawRadar);
     };
 
     drawRadar();
 
-    // Event updater simulation loop
-    const eventTimer = setInterval(() => {
-      const idx = Math.floor(Math.random() * 3);
-      if (idx === 0) {
-        setLastEvent({
-          title: "TREMOR ALERT",
-          desc: "Ml 2.4 Tremor detected in Sector 2",
-          time: new Date().toLocaleTimeString()
-        });
-      } else if (idx === 1) {
-        setLastEvent({
-          title: "SENSORS SYNC",
-          desc: "Geophone nodes [10-18] synced",
-          time: new Date().toLocaleTimeString()
-        });
-      } else {
-        setLastEvent({
-          title: "BAROMETRIC DROP",
-          desc: "Pressure dropping: -2.4mb/hr",
-          time: new Date().toLocaleTimeString()
-        });
-      }
-    }, 6000);
-
     return () => {
       cancelAnimationFrame(timer);
-      clearInterval(eventTimer);
     };
-  }, []);
+  }, [alerts, seismicMode]);
 
-  const isWarning = lastEvent.title.includes("ALERT") || lastEvent.title.includes("DROP");
+  const isWarning = lastEvent.level === 'critical' || lastEvent.level === 'warning';
+  const themeColor = seismicMode === 'mitigation' ? 'red' : 'green';
+  const titleText = seismicMode === 'mitigation' ? 'E.W.S. ACTIVE' : 'SEISMIC RADAR';
 
   return (
-    <div className="bg-black/80 border border-[#333] p-3 rounded-lg shadow-xl w-44 flex flex-col items-center">
-      <div className="flex justify-between items-center w-full mb-1 border-b border-[#222] pb-1 text-[9px] font-mono text-[#888]">
+    <div className={`bg-black/80 border border-[#333] p-3 rounded-lg shadow-xl w-44 flex flex-col items-center transition-colors`}>
+      <div className={`flex justify-between items-center w-full mb-1 border-b border-[#222] pb-1 text-[9px] font-mono text-[#888] ${isWarning ? 'text-red-500' : (seismicMode === 'mitigation' ? 'text-red-500' : 'text-green-500')}`}>
         <span className="flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-ping"></span>
-          SEISMIC RADAR
+          <span className={`w-1.5 h-1.5 rounded-full ${isWarning ? 'bg-red-500' : (seismicMode === 'mitigation' ? 'bg-red-500/50' : 'bg-green-500/50')} animate-ping`}></span>
+          {titleText}
         </span>
-        <span>SCAN ON</span>
+        <Activity size={10} className={seismicMode === 'mitigation' ? 'text-red-500' : 'text-green-500'} />
       </div>
 
       <canvas 
         ref={canvasRef} 
         width={100} 
         height={100} 
-        className="bg-[#111] border border-[#222] rounded-full my-2 box-border"
+        className="bg-[#0a0f0a] border border-[#222] rounded-full my-2 box-border"
       />
 
-      <div className={`w-full p-1.5 rounded text-[8px] font-mono leading-tight ${isWarning ? 'bg-red-500/10 border border-red-500/30 text-red-500' : 'bg-green-500/10 border border-green-500/30 text-green-500 animate-pulse'}`}>
-        <div className="font-bold flex items-center gap-1">
-          {isWarning ? <ShieldAlert size={10} /> : <AlertCircle size={10} />}
-          {lastEvent.title}
+      <div className={`w-full p-1.5 rounded text-[8px] font-mono leading-tight transition-colors ${isWarning ? 'bg-red-500/20 border border-red-500 text-red-400 font-bold' : (seismicMode === 'mitigation' ? 'bg-red-500/10 border border-red-500/30 text-red-400' : 'bg-green-500/10 border border-green-500/30 text-green-400')}`}>
+        <div className="flex items-center gap-1 mb-0.5">
+          {isWarning ? <ShieldAlert size={10} className="animate-pulse text-red-500" /> : <AlertCircle size={10} />}
+          <span>{lastEvent.title}</span>
         </div>
-        <p className="text-[7px] text-white/70 mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis">{lastEvent.desc}</p>
+        <p className={`text-[7px] ${isWarning ? 'text-red-200' : 'text-white/70'} whitespace-nowrap overflow-hidden text-ellipsis`}>{lastEvent.desc}</p>
       </div>
     </div>
   );

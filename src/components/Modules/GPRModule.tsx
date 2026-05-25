@@ -8,6 +8,7 @@ import {
   Cpu 
 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import UniversalIngestionPort from '../Shared/UniversalIngestionPort';
 
 export default function GPRModule() {
   const [antennaFreq, setAntennaFreq] = useState<number>(500); // in MHz
@@ -18,7 +19,7 @@ export default function GPRModule() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Raw waveform wiggle data representing one trace
-  const rawWiggleTrace = Array.from({ length: 40 }).map((_, i) => {
+  const [rawWiggleTrace, setRawWiggleTrace] = useState(() => Array.from({ length: 40 }).map((_, i) => {
     const depth = i * 0.25;
     const term1 = Math.sin(depth * 3.5) * Math.exp(-depth * 0.4);
     // simulated reflection boundary at 4.2m depth representing water table or pipe
@@ -28,7 +29,25 @@ export default function GPRModule() {
       timeNs: (depth * 10).toFixed(0),
       amplitude: Number((term1 + reflection).toFixed(3))
     };
-  });
+  }));
+
+  const presetLog = `# GPR Trace Data Log
+0.0, 0, 0.5
+0.25, 2.5, 0.4
+0.5, 5.0, -0.6
+0.75, 7.5, -0.2
+1.0, 10.0, 0.8`;
+
+  const handleParsedData = (parsedData: any[]) => {
+    if (parsedData && parsedData.length > 0) {
+      const mapped = parsedData.map((row) => ({
+        depth: (row[0] || 0).toFixed(2),
+        timeNs: (row[1] || 0).toFixed(0),
+        amplitude: row[2] || 0
+      }));
+      setRawWiggleTrace(mapped);
+    }
+  };
 
   // Render continuous radargram on Canvas
   useEffect(() => {
@@ -133,6 +152,12 @@ export default function GPRModule() {
       <div className="grid grid-cols-12 gap-6">
         {/* Antenna Setup Panel */}
         <div className="col-span-4 space-y-4">
+          <UniversalIngestionPort 
+            moduleName="gpr"
+            contextKey="gprData"
+            onParsed={handleParsedData}
+            presetLog={presetLog}
+          />
           <div className="geo-card">
             <h3 className="text-xs uppercase font-mono font-bold tracking-widest text-[#888] mb-4">Radar Antenna Parameters</h3>
             <div className="space-y-4">
@@ -255,7 +280,7 @@ export default function GPRModule() {
             
             <div className="h-44 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={rawWiggleTrace}>
+                <LineChart data={rawWiggleTrace || []}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#222" />
                   <XAxis dataKey="depth" stroke="#555" fontSize={10} label={{ value: 'Subsurface Depth (m)', position: 'insideBottom', offset: -5, fill: '#555', fontSize: 9 }} />
                   <YAxis stroke="#555" fontSize={10} name="Reflection Amp" domain={[-2, 2]} />

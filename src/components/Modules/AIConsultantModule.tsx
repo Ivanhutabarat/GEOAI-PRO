@@ -1,36 +1,63 @@
-import React, { useState } from 'react';
-import { Bot, Users, Sparkles, Shield, Cpu, Play, CheckCircle2, Globe2, Activity } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Bot, Users, Sparkles, Shield, Cpu, Play, CheckCircle2, Globe2, Activity, MessageSquare, Send, Loader2 } from 'lucide-react';
 import { useGlobalGeoContext } from '../../context/GlobalGeoContext';
+import ReactMarkdown from 'react-markdown';
 
 export default function MasterGeoSynthesizer() {
-  const [activeTab, setActiveTab] = useState<'roster' | 'parameters' | 'context'>('roster');
+  const [activeTab, setActiveTab] = useState<'roster' | 'parameters' | 'context' | 'chat'>('chat');
   const { rawPayloads } = useGlobalGeoContext();
+  const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'ai', content: string }[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [isSynthesizing, setIsSynthesizing] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [chatHistory, isSynthesizing]);
+
+  const handleChatSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!chatInput.trim()) return;
+
+    const newChat: { role: 'user' | 'ai', content: string }[] = [...chatHistory, { role: 'user', content: chatInput }];
+    setChatHistory(newChat);
+    setChatInput('');
+    setIsSynthesizing(true);
+
+    try {
+      const res = await fetch('/api/master-synthesize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: chatInput,
+          globalData: rawPayloads,
+          history: chatHistory.slice(-5)
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setChatHistory([...newChat, { role: 'ai', content: data.reply }]);
+      } else {
+        setChatHistory([...newChat, { role: 'ai', content: `*[SYSTEM ERROR]: ${data.error}*` }]);
+      }
+    } catch (err: any) {
+      setChatHistory([...newChat, { role: 'ai', content: `*[SYSTEM TIMEOUT]: Failed to connect to core. ${err?.message || ''}*` }]);
+    } finally {
+      setIsSynthesizing(false);
+    }
+  };
 
   const specialists = [
-    {
-      name: "Dr. Marcus Vance",
-      avatar: "GV",
-      role: "Senior Geophysicist",
-      model: "Inversion Engine // gemini-2.5-flash",
-      personality: "Precise, mathematical, focused entirely on anomaly values, RMS residuals, and noise filtration waveforms.",
-      focus: "Seismic wiggles interpolation, magnetic dipoles inversion, ground radar hyperbola envelope fitting."
-    },
-    {
-      name: "Dr. Elena Rostova",
-      avatar: "GR",
-      role: "Senior Structural Geologist",
-      model: "Stratigraphy Core // gemini-2.5-flash",
-      personality: "Mineral-focused, qualitative, relies on stratigraphic layers, synclines, and bedrock sedimentary matrices.",
-      focus: "Horizon picking validation, geochemical ternary sandstone profiling, core mineral analysis."
-    },
-    {
-      name: "Mr. Kenji Takahashi",
-      avatar: "KT",
-      role: "Lead Resource Economist",
-      model: "Financial Model // gemini-2.5-flash",
-      personality: "Practical, statistical, risk-avoiding, focused entirely on drilling profitability, environmental costs, and ROI matrices.",
-      focus: "Exploration return margins, operating cost models, drilling safety hazard assessments."
-    }
+    { name: "Dr. Marcus Vance", avatar: "GV", role: "Senior Geophysicist", model: "Inversion Engine // gemini-2.5-flash", personality: "Precise, mathematical.", focus: "Structural Anomalies" },
+    { name: "Dr. Elena Rostova", avatar: "GR", role: "Structural Geologist", model: "Stratigraphy Core", personality: "Mineral-focused, qualitative.", focus: "Lithology" },
+    { name: "Mr. Kenji Takahashi", avatar: "KT", role: "Resource Economist", model: "Financial Model", personality: "Statistical, risk-avoiding.", focus: "Drilling ROI" },
+    { name: "Dr. Sarah Lin", avatar: "PT", role: "Petrophysicist", model: "Log Analyzer", personality: "Analytical, log-centric.", focus: "Porosity & Permeability" },
+    { name: "Dr. David Chen", avatar: "SM", role: "Seismologist", model: "Acoustic Engine", personality: "Waveform obsessed.", focus: "Wiggle Traces & Tremors" },
+    { name: "Dr. Aisha Rahman", avatar: "GC", role: "Geochemist", model: "Spectroscopy Node", personality: "Chemical, precise.", focus: "Mineral Alteration" },
+    { name: "Eng. Carlos Mendez", avatar: "DE", role: "Drilling Engineer", model: "Mechanical Model", personality: "Operational, mechanical.", focus: "Wellbore Stability" },
+    { name: "Capt. Robert Hayes", avatar: "HSE", role: "Safety Officer", model: "Risk Analyzer", personality: "Protective, compliance-driven.", focus: "Operational Safety" }
   ];
 
   return (
@@ -77,8 +104,70 @@ export default function MasterGeoSynthesizer() {
                   <Activity size={10} />
                   Global Context
                 </button>
+                <button 
+                  onClick={() => setActiveTab('chat')}
+                  className={`px-3 py-1 text-[10px] font-mono rounded border border-[#FF5722] flex items-center gap-1 ${activeTab === 'chat' ? 'bg-[#FF5722] text-black font-bold' : 'bg-[#FF5722]/10 text-[#FF5722]'}`}
+                >
+                  <MessageSquare size={10} />
+                  Core Chat
+                </button>
               </div>
             </div>
+
+            {activeTab === 'chat' && (
+              <div className="flex flex-col h-[400px] border border-[#222] rounded-lg bg-black/60 overflow-hidden">
+                <div 
+                  ref={scrollRef}
+                  className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/5"
+                >
+                  {chatHistory.length === 0 && (
+                    <div className="flex flex-col items-center justify-center h-full text-[#555] font-mono text-xs space-y-2">
+                      <Globe2 size={24} className="text-[#333]" />
+                      <p>Master Core Intelligence initialized.</p>
+                      <p>Awaiting global dataset synthesis prompts...</p>
+                    </div>
+                  )}
+                  {chatHistory.map((msg, i) => (
+                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[85%] rounded p-3 text-[11px] font-mono leading-relaxed ${
+                        msg.role === 'user' ? 'bg-[#FF5722] text-black' : 'bg-[#111] text-gray-300 border border-[#333] markdown-body'
+                      }`}>
+                        {msg.role === 'user' ? (
+                          msg.content
+                        ) : (
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {isSynthesizing && (
+                    <div className="flex justify-start">
+                      <div className="max-w-[85%] rounded p-3 text-[11px] font-mono leading-relaxed bg-[#111] text-green-400 border border-[#222] flex items-center gap-2">
+                        <Loader2 size={12} className="animate-spin" />
+                        SYNTHESIZING CROSS-METHOD DATA...
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <form onSubmit={handleChatSubmit} className="p-3 border-t border-[#222] bg-black/80 flex gap-2">
+                  <input 
+                    type="text" 
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Ask Supreme Core to cross-reference dataset..."
+                    className="flex-1 bg-white/5 border border-[#333] rounded px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-[#FF5722]/50 placeholder-gray-600"
+                    disabled={isSynthesizing}
+                  />
+                  <button 
+                    type="submit"
+                    disabled={!chatInput.trim() || isSynthesizing}
+                    className="bg-[#FF5722] disabled:opacity-50 text-black px-4 py-2 rounded flex items-center justify-center hover:bg-[#ff7043] transition-colors"
+                  >
+                    <Send size={14} />
+                  </button>
+                </form>
+              </div>
+            )}
 
             {activeTab === 'roster' && (
               <div className="space-y-4">

@@ -209,12 +209,18 @@ app.post("/api/swarm/debate", async (req, res) => {
   const { message, activeModule, coordinates, history } = req.body;
 
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({
+        success: false,
+        error: "API key not configured"
+      });
+    }
     const ai = getGeminiClient();
 
     // Mapping module context
     const contextMap: Record<string, string> = {
       "dashboard": "Viewing central command dashboard carrying processed arrays and diagnostic models.",
-      "seismic": "Active Segment: Seismic Reflection logs (.segy). Focuses on acoustic wavelet, denoising, and horizon picks.",
+      "seismic": "Active Segment: Seismic Reflection logs (.segy). In E-MODE (Exploration) focuses on acoustic wavelet, bright spots (potential hydrocarbon/gas indicators), fault lines, and acoustic impedance contrasts. In M-MODE (Mitigation) focuses on time-series seismograms to calculate tremor magnitude, focal depth, and issue structural damage warnings.",
       "well-logging": "Active Segment: Well Logging logs (.las). Focuses on sonic transit times, deep induction resistivity, and rock porousness.",
       "spatial": "Active Segment: 3D Spatial Digital Twin (.shp). Mapping coordinates and virtual drilling sites.",
       "gravity-mag": "Active Segment: Gravity & Magnetics (.csv). Mapping basement rock structures and regional anomalies.",
@@ -234,37 +240,37 @@ app.post("/api/swarm/debate", async (req, res) => {
       : "No coordinates clicked directly in this session.";
 
     // Unified system prompt for consensus agent simulation
-    const systemInstruction = `You are the Orchestrator of a Geophysics Swarm of 100+ Agents (covering Geophysics, Geology, and Econometrical clusters).
+    const systemInstruction = `You are the Orchestrator of a Geophysics Swarm of 8 Agents (Vance, Rostova, Takahashi, Lin, Chen, Rahman, Mendez, Hayes).
 If the user greets you casually (e.g., hello, bonjour, hey, help, help me, who are you), reply naturally and warmly as the Swarm Orchestrator, reminding them to import a raw dataset (.csv, .txt, .las) or point-click coordinates to activate the deep analytical consensus.
 Only generate a full geological consensus analysis if raw data is submitted or direct drill coordinates are designation.
 
-You must simulate the debate amongst the clusters by generating three consecutive responses (one representing Marcus, one Elena, and one Kenji speaking in consensus sequence).
+You must simulate the debate amongst the clusters by generating three consecutive responses (dynamically picking the 3 most relevant agents for the active module context: e.g. for well-logging pick Lin, Rostova, Mendez. For seismic pick Chen, Vance, Rostova. For meteorology pick Hayes, Chen, Takahashi).
 Produce the final swarm response strictly structured as a JSON array of message objects:
 [
   {
-    "agent": "Geophysicist (Dr. Marcus Vance)",
-    "role": "Structural Anomalies Leader",
-    "reasoning": "Deductive logic chain. Analysis of gravity anomaly vs electrical resistivity trends. Step-by-step thinking...",
-    "content": "Professional Geophysicist opinion focusing on anomalies, denoising, and bedrock...",
-    "avatar": "GV"
+    "agent": "Name (e.g. Dr. Marcus Vance)",
+    "role": "Specific Domain Leader",
+    "reasoning": "Deductive logic chain. Analysis of data trends. Step-by-step thinking...",
+    "content": "Professional opinion focusing on metrics and parameters...",
+    "avatar": "Agent Initials (e.g. GV)"
   },
   {
-    "agent": "Geologist (Dr. Elena Rostova)",
-    "role": "Stratigraphy & Lithology Leader",
-    "reasoning": "Deductive logic chain. Stratigraphic rock sequence constraints...",
-    "content": "Professional Geologist opinion verifying anomalies, stratigraphy horizons, and core samples...",
-    "avatar": "GR"
+    "agent": "Name",
+    "role": "Specific Domain Leader",
+    "reasoning": "Deductive logic chain...",
+    "content": "Professional opinion...",
+    "avatar": "Agent Initials"
   },
   {
-    "agent": "Economist (Mr. Kenji Takahashi)",
-    "role": "Feasibility, Risk & ROI Leader",
-    "reasoning": "Deductive logic chain. ROI break-even analysis based on anomalies depth...",
-    "content": "Professional Resource Economist analysis detailing drilling hazard risk and ROI calculations...",
-    "avatar": "KT"
+    "agent": "Name",
+    "role": "Specific Domain Leader",
+    "reasoning": "Deductive logic chain...",
+    "content": "Professional analysis...",
+    "avatar": "Agent Initials"
   }
 ]
 
-Write each opinion in highly technical, geophysicist-level English with precise details. Keep each description to one dense paragraph. Return ONLY the raw valid JSON array, strictly avoiding markdown block wraps like \`\`\`json.`;
+Write each opinion in highly technical, expert-level English with precise details. Keep each description to one dense paragraph. Return ONLY the raw valid JSON array, strictly avoiding markdown block wraps like \`\`\`json.`;
 
     // Construct the conversational thread context
     const previousChat = history && history.length > 0
@@ -337,6 +343,55 @@ Formulate the simulated swarm debate output. Remember: only do deep geological c
         }
       ]
     });
+  }
+});
+
+// 5. Master AI Synthesizer endpoint
+app.post("/api/master-synthesize", async (req, res) => {
+  const { message, globalData, history } = req.body;
+
+  try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({
+        success: false,
+        error: "API key not configured"
+      });
+    }
+    const ai = getGeminiClient();
+
+    const systemInstruction = `You are the orchestrator of an 8-specialist boardroom (Vance, Rostova, Takahashi, Lin, Chen, Rahman, Mendez, Hayes). When the user asks a global question, synthesize the viewpoints of all 8 domains to formulate a final operational decision based on the global context data.
+You have real-time access to a multi-disciplinary global dataset containing seismic data, well logs, gravity/magnetic anomalies, electrical resistivity profiles, and economic metrics. 
+Your job is to synthesize these disconnected datasets to answer complex operational questions. 
+- If the user asks where to drill ('dimana ngebor' or similar), cross-reference geophysics anomalies (e.g., high gravity density matching low electrical resistivity) to pinpoint optimal coordinates and depths.
+- If the user asks about financial expenditures ('berapa banyak uang keluar'), parse the available economic parameters, drilling depth costs, and equipment metrics from the data to generate a structured financial estimation breakdown.
+Always justify your answers by quoting specific values or trends from the provided datasets.`;
+
+    const isEmptyData = !globalData || Object.values(globalData).every((v: any) => !v || v.length === 0);
+
+    let userPrompt = "";
+    if (isEmptyData) {
+      userPrompt = `The Global Project Dataset Context is completely empty. The user says: "${message}". Politely inform the user that they need to upload or paste data into one of the specialized spatial modules (e.g., Seismic, Gravity, Electrical) before you can provide synthesis.`;
+    } else {
+      userPrompt = `Global Project Dataset Context:\n${JSON.stringify(globalData)}\n\nRecent conversation history:\n${history.map((h: any) => `[${h.role}]: ${h.content}`).join("\n")}\n\nUser Query:\n"${message}"`;
+    }
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: userPrompt,
+      config: {
+        systemInstruction,
+        temperature: 0.3
+      }
+    });
+
+    res.json({
+      success: true,
+      reply: response.text
+    });
+
+  } catch (error: any) {
+    console.error("Master Synthesize Error:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

@@ -33,7 +33,7 @@ export default function UniversalIngestionPort({
         continue;
       }
       
-      const parts = line.split(/[\s,;\t]+/).map(Number).filter(n => !isNaN(n));
+      const parts = line.split(/[\s,;\t]+/).filter(Boolean).map(n => parseFloat(n)).filter(n => !isNaN(n));
       if (parts.length > 0) {
         parsedData.push(parts);
       }

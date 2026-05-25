@@ -9,6 +9,7 @@ import {
   Cpu 
 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
+import UniversalIngestionPort from '../Shared/UniversalIngestionPort';
 
 export default function MeteorologyModule() {
   const [activeStation, setActiveStation] = useState<string>("Alpine-North");
@@ -16,13 +17,13 @@ export default function MeteorologyModule() {
   const [radarLoop, setRadarLoop] = useState<boolean>(true);
 
   // 24-hour climate log data for meteorological stations
-  const weatherLogs: Record<string, {
+  const [weatherLogs, setWeatherLogs] = useState<Record<string, {
     stationName: string,
     elev: number,
     humidity: number,
     windDir: string,
     hourlyData: { time: string, temp: number, pressure: number, windSpeed: number, rainProb: number }[]
-  }> = {
+  }>>({
     "Alpine-North": {
       stationName: "Alpine North Ridge Summit",
       elev: 2840,
@@ -65,6 +66,37 @@ export default function MeteorologyModule() {
         { time: '20:00', temp: 34, pressure: 1019, windSpeed: 12, rainProb: 0 },
       ]
     }
+  });
+
+  const presetLog = `# Climate Station Imports
+# Hour, Temp, Pressure, Wind
+0, 20, 1010, 10
+4, 18, 1008, 12
+8, 22, 1005, 18
+12, 28, 1001, 24
+16, 30, 998, 20
+20, 25, 1004, 15`;
+
+  const handleParsedData = (parsedData: any[]) => {
+    if (parsedData && parsedData.length > 0) {
+      const newLogs = { ...weatherLogs };
+      const newStation = {
+        stationName: "Imported Remote Station",
+        elev: 1500,
+        humidity: 50,
+        windDir: "VAR",
+        hourlyData: parsedData.map((row) => ({
+          time: `${String(row[0] || 0).padStart(2, '0')}:00`,
+          temp: row[1] || 20,
+          pressure: row[2] || 1010,
+          windSpeed: row[3] || 10,
+          rainProb: 0
+        }))
+      };
+      newLogs["Imported-Remote"] = newStation;
+      setWeatherLogs(newLogs);
+      setActiveStation("Imported-Remote");
+    }
   };
 
   const currentStation = weatherLogs[activeStation];
@@ -92,6 +124,12 @@ export default function MeteorologyModule() {
       <div className="grid grid-cols-12 gap-6">
         {/* Climate station selector widgets */}
         <div className="col-span-4 space-y-4">
+          <UniversalIngestionPort 
+            moduleName="meteo"
+            contextKey="meteorologyData"
+            onParsed={handleParsedData}
+            presetLog={presetLog}
+          />
           <div className="geo-card">
             <h3 className="text-xs uppercase font-mono font-bold tracking-widest text-[#888] mb-4 font-bold">Climate Stations</h3>
             <div className="space-y-3">
@@ -184,7 +222,7 @@ export default function MeteorologyModule() {
             <h3 className="text-xs uppercase font-mono font-bold tracking-widest text-[#888] mb-6">24-Hour Diurnal Climatological Profile</h3>
             <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={currentStation.hourlyData}>
+                <LineChart data={currentStation?.hourlyData || []}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#222" />
                   <XAxis dataKey="time" stroke="#555" fontSize={10} />
                   <YAxis yAxisId="left" stroke="#ff5722" fontSize={10} name="Temp (°C)" label={{ value: 'Temperature (°C)', angle: -90, position: 'insideLeft', fill: '#ff5722', fontSize: 9 }} />
