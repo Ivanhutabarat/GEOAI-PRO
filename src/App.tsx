@@ -1,3 +1,10 @@
+/**
+ * @license
+ * Copyright 2026 Ivan Krisopras Hutabarat
+ * Licensed under the Apache License, Version 2.0
+ */
+
+
 import React, { useState, useEffect } from 'react';
 import { 
   Activity, 
