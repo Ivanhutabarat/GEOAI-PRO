@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getEffectiveApiKey } from '../config/apiConfig';
 
 type QueueTask = {
   id: string;
@@ -73,33 +74,49 @@ class ApiQueueManager {
       this.notify();
       
       try {
-        const response = await fetch(task.url, task.options);
+        // Inject current effective API key dynamically
+        const currentOptions = { ...task.options };
+        if (currentOptions.method === 'POST' && currentOptions.body) {
+          try {
+             const bodyObj = JSON.parse(currentOptions.body as string);
+             bodyObj.apiKey = getEffectiveApiKey(false);
+             currentOptions.body = JSON.stringify(bodyObj);
+          } catch(e) {}
+        }
+
+        const response = await fetch(task.url, currentOptions);
         
-        if (response.status === 429) {
-          if (task.retries >= 3) {
-            // Out of retries, reject the task.
-            this.queue.shift();
-            this.completedTasks++;
-            task.reject(new Error("Max retries exceeded for rate limit."));
-            continue;
+        if (response.status === 429 || response.status === 500) {
+          // Attempt to read if it's an API key error
+          let isApiError = response.status === 429;
+          if (response.status === 500) {
+            try {
+              const clone = response.clone();
+              const d = await clone.json();
+              if (d.error && (d.error.includes("API key not configured") || d.error.includes("API key not valid") || d.error.includes("quota"))) {
+                isApiError = true;
+              }
+            } catch(e) {}
           }
-          
-          task.retries++;
-          let delayStr = response.headers.get("Retry-After");
-          let delayMs = 35000;
-          if (delayStr) {
-             const parsed = parseInt(delayStr, 10);
-             if (!isNaN(parsed)) delayMs = parsed * 1000;
-             else if (new Date(delayStr).getTime()) delayMs = new Date(delayStr).getTime() - Date.now();
+
+          if (isApiError) {
+            if (task.retries >= 3) {
+              // Out of retries, reject the task.
+              this.queue.shift();
+              this.completedTasks++;
+              task.reject(new Error("Max retries exceeded for API failure."));
+              continue;
+            }
+            // Cycle key centrally
+            getEffectiveApiKey(true);
+            
+            task.retries++;
+            // Force short delay for key rotation
+            this.currentStatus = `API Error Hit (429/500). Rotating key... [Retry ${task.retries}/3]`;
+            this.notify();
+            await new Promise(res => setTimeout(res, 2000));
+            continue; // retry
           }
-          
-          let seconds = Math.ceil(delayMs / 1000);
-          for (let i = seconds; i > 0; i--) {
-             this.currentStatus = `Rate limit hit. Cooling down for ${i}s... [Retry ${task.retries}/3]`;
-             this.notify();
-             await new Promise(res => setTimeout(res, 1000));
-          }
-          continue; // retry
         }
         
         this.queue.shift();

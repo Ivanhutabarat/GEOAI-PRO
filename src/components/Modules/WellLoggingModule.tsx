@@ -11,25 +11,15 @@ import {
   Maximize2,
   Trash2
 } from 'lucide-react';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  AreaChart,
-  Area
-} from 'recharts';
 import { cn } from '../../lib/utils';
 import { useGlobalGeoContext } from '../../context/GlobalGeoContext';
 
 import UniversalIngestionPort from '../Shared/UniversalIngestionPort';
+import ChartRenderer from './ChartRenderer';
 
 export default function WellLoggingModule() {
   const { rawPayloads, activeFileName, dataDimensions } = useGlobalGeoContext();
-  const [visibleCurves, setVisibleCurves] = useState({ gr: true, res: true, rhob: true, nphi: false, dt: false, cal: false });
+  const [visibleCurves, setVisibleCurves] = useState({ gr: true, res: true, rhob: true, nphi: true, dt: true, cal: true });
   
   const [chartData, setChartData] = useState<any[]>([]);
 
@@ -44,6 +34,8 @@ export default function WellLoggingModule() {
     const parsedData: any[] = [];
     
     let hasHeader = false;
+    let headerIndices: any = { depth: 0, gr: 1, res: 2, rhob: 3, nphi: 4, dt: 5, cal: 6 };
+
     for (let line of lines) {
       line = line.trim();
       if (!line || line.startsWith('#') || line.startsWith('~') || line.startsWith('//')) {
@@ -52,27 +44,42 @@ export default function WellLoggingModule() {
       
       const parts = line.split(/[,;\s\t]+/).filter(Boolean);
       
-      // If it resembles the explicit header: Depth_m, GR_API, RES_Ohmm, RHOB_gcm3
-      // We skip the first row (assuming it's a header) if it contains characters
       if (!hasHeader && isNaN(Number(parts[0]))) {
         hasHeader = true;
+        
+        // Dynamically detect column indices from header
+        const upperParts = parts.map(p => p.toUpperCase());
+        headerIndices = {
+            depth: upperParts.findIndex(p => p.includes('DEP') || p.includes('MD')),
+            gr: upperParts.findIndex(p => p.includes('GR') || p.includes('GAMMA')),
+            res: upperParts.findIndex(p => p.includes('RES') || p.includes('RT') || p.includes('ILD')),
+            rhob: upperParts.findIndex(p => p.includes('RHOB') || p.includes('DEN')),
+            nphi: upperParts.findIndex(p => p.includes('NPHI') || p.includes('NEU')),
+            dt: upperParts.findIndex(p => p.includes('DT') || p.includes('SON')),
+            cal: upperParts.findIndex(p => p.includes('CAL'))
+        };
+        
+        // Fallback for missing standard names
+        if (headerIndices.depth === -1) headerIndices.depth = 0;
         continue;
       }
       
-      if (parts.length >= 4) {
+      if (parts.length >= 2) {
         parsedData.push({
-          depth: Number(parts[0]),
-          gr: Number(parts[1]),
-          res: Number(parts[2]),
-          rhob: Number(parts[3]),
-          nphi: parts.length >= 5 ? Number(parts[4]) : undefined,
-          dt: parts.length >= 6 ? Number(parts[5]) : undefined,
-          cal: parts.length >= 7 ? Number(parts[6]) : undefined
+          depth: Number(parts[headerIndices.depth !== -1 ? headerIndices.depth : 0]),
+          gr: headerIndices.gr !== -1 && parts[headerIndices.gr] ? Number(parts[headerIndices.gr]) : undefined,
+          res: headerIndices.res !== -1 && parts[headerIndices.res] ? Number(parts[headerIndices.res]) : undefined,
+          rhob: headerIndices.rhob !== -1 && parts[headerIndices.rhob] ? Number(parts[headerIndices.rhob]) : undefined,
+          nphi: headerIndices.nphi !== -1 && parts[headerIndices.nphi] ? Number(parts[headerIndices.nphi]) : undefined,
+          dt: headerIndices.dt !== -1 && parts[headerIndices.dt] ? Number(parts[headerIndices.dt]) : undefined,
+          cal: headerIndices.cal !== -1 && parts[headerIndices.cal] ? Number(parts[headerIndices.cal]) : undefined
         });
       }
     }
     
-    setChartData([...parsedData]); // Force new array reference
+    // Sort array by depth ensuring proper plotting
+    parsedData.sort((a, b) => a.depth - b.depth);
+    setChartData([...parsedData]);
   }, [rawPayloads.wellLoggingData]);
 
   // Dynamic calculations
@@ -178,93 +185,12 @@ export default function WellLoggingModule() {
                     <span className="text-xl font-bold font-mono text-[#03A9F4] animate-pulse">Auto-Detected {dataDimensions} Data Structure</span>
                     <span className="text-sm font-mono text-[#888]">Dynamically splitting view for multi-well spatial overlay analysis...</span>
                     <div className="w-11/12 h-2/3 border border-[#333] bg-[#111] mt-4 flex items-center justify-center p-4">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#222" />
-                                <Line type="monotone" dataKey={Object.keys(chartData[0] || {})[1] || 'value'} stroke="#03A9F4" strokeWidth={1} dot={false} />
-                            </LineChart>
-                        </ResponsiveContainer>
+                       <ChartRenderer data={chartData} visibleCurves={visibleCurves} />
                     </div>
                  </div>
             ) : (
-                <div className="flex-1 bg-black p-4 flex gap-4 overflow-x-auto relative">
-                    {/* Track 1: Gamma Ray */}
-                    <LogTrack label="Gamma Ray" unit="GAPI" color="#FF5722">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={chartData} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#222" horizontal={true} vertical={false} />
-                                <XAxis type="number" hide domain={['dataMin', 'dataMax']} />
-                                <YAxis dataKey="depth" reversed={true} type="number" domain={['dataMin', 'dataMax']} hide />
-                                <Tooltip content={<CustomTooltip />} />
-                                <Area type="linear" dataKey="gr" hide={!visibleCurves.gr} stroke="#FF5722" strokeWidth={1} fill="#FF572233" isAnimationActive={false} dot={false} activeDot={{ r: 4 }} />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </LogTrack>
-
-                    {/* Track 2: Resistivity */}
-                    <LogTrack label="Resistivity" unit="OHMM" color="#4CAF50">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#222" horizontal={true} vertical={false} />
-                                <XAxis type="number" scale="log" hide domain={['dataMin', 'dataMax']} />
-                                <YAxis dataKey="depth" reversed={true} type="number" domain={['dataMin', 'dataMax']} hide />
-                                <Tooltip content={<CustomTooltip />} />
-                                <Line type="linear" dataKey="res" hide={!visibleCurves.res} stroke="#4CAF50" strokeWidth={1} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </LogTrack>
-
-                    {/* Track 3: Density */}
-                    <LogTrack label="Density" unit="G/CC" color="#03A9F4">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#222" horizontal={true} vertical={false} />
-                                <XAxis type="number" hide domain={['dataMin', 'dataMax']} />
-                                <YAxis dataKey="depth" reversed={true} type="number" domain={['dataMin', 'dataMax']} hide />
-                                <Tooltip content={<CustomTooltip />} />
-                                <Line type="linear" dataKey="rhob" hide={!visibleCurves.rhob} stroke="#03A9F4" strokeWidth={1} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </LogTrack>
-
-                    {/* Track 4: Neutron */}
-                    <LogTrack label="Neutron" unit="V/V" color="#FFD700">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#222" horizontal={true} vertical={false} />
-                                <XAxis type="number" hide domain={['dataMin', 'dataMax']} />
-                                <YAxis dataKey="depth" reversed={true} type="number" domain={['dataMin', 'dataMax']} hide />
-                                <Tooltip content={<CustomTooltip />} />
-                                <Line type="linear" dataKey="nphi" hide={!visibleCurves.nphi} stroke="#FFD700" strokeWidth={1} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </LogTrack>
-
-                    {/* Track 5: Sonic */}
-                    <LogTrack label="Sonic" unit="US/FT" color="#9C27B0">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#222" horizontal={true} vertical={false} />
-                                <XAxis type="number" hide domain={['dataMin', 'dataMax']} />
-                                <YAxis dataKey="depth" reversed={true} type="number" domain={['dataMin', 'dataMax']} hide />
-                                <Tooltip content={<CustomTooltip />} />
-                                <Line type="linear" dataKey="dt" hide={!visibleCurves.dt} stroke="#9C27B0" strokeWidth={1} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </LogTrack>
-
-                    {/* Track 6: Caliper */}
-                    <LogTrack label="Caliper" unit="IN" color="#9E9E9E">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#222" horizontal={true} vertical={false} />
-                                <XAxis type="number" hide domain={['dataMin', 'dataMax']} />
-                                <YAxis dataKey="depth" reversed={true} type="number" domain={['dataMin', 'dataMax']} hide />
-                                <Tooltip content={<CustomTooltip />} />
-                                <Line type="linear" dataKey="cal" hide={!visibleCurves.cal} stroke="#9E9E9E" strokeWidth={1} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </LogTrack>
+                <div className="flex-1 bg-black overflow-hidden relative border-r border-[#333]">
+                    <ChartRenderer data={chartData} visibleCurves={visibleCurves} />
                 </div>
             )}
 
@@ -326,20 +252,6 @@ function CurveToggle({ label, color, active, onClick }: any) {
     );
 }
 
-function LogTrack({ label, unit, color, children }: any) {
-    return (
-        <div className="w-48 h-full flex flex-col border border-[#222]">
-            <div className="p-2 border-b border-[#222] text-center bg-[#111]">
-                <span className="text-[10px] font-bold text-white block uppercase tracking-tighter">{label}</span>
-                <span className="text-[9px] text-[#555] block">{unit}</span>
-            </div>
-            <div className="flex-1 relative">
-                {children}
-            </div>
-        </div>
-    );
-}
-
 function LithologyZone({ color, label, percentage }: any) {
     return (
         <div className="p-3 bg-black/20 border border-[#222] rounded flex items-center gap-3">
@@ -357,16 +269,4 @@ function LithologyZone({ color, label, percentage }: any) {
         </div>
     );
 }
-
-const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-        return (
-            <div className="bg-[#111] border border-[#333] p-2 text-[10px] font-mono text-white">
-                <p>DEPTH: {payload[0].payload?.depth || '0'}m</p>
-                <p className="text-[#FF5722]">VAL: {payload[0].value ? payload[0].value.toFixed(2) : '0'}</p>
-            </div>
-        );
-    }
-    return null;
-};
 

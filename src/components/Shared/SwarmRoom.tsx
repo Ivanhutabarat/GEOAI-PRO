@@ -212,7 +212,10 @@ export default function SwarmRoom({ activeModule, drillCoordinates, onClearCoord
       });
       const data = await response.json();
 
-      if (data.success && data.debate) {
+      // Check if the server caught a deep error and gave us the emergency message
+      const isEmergencyFallback = data.debate && data.debate[0]?.avatar === "SYS";
+
+      if (data.success && data.debate && !isEmergencyFallback) {
         setApiErrorBanner(false);
         // Stagger entrance slightly for UI realism, but completely powered by real API
         data.debate.forEach((item: any, idx: number) => {
@@ -229,10 +232,9 @@ export default function SwarmRoom({ activeModule, drillCoordinates, onClearCoord
         });
       } else {
         if (response.status === 500 && data.error === "API key not configured") {
-          setApiErrorBanner(true);
           throw new Error("Production Error: Gemini API Core Connection Failed.");
         }
-        throw new Error(data.error || "Swarm node timeout");
+        throw new Error(data.error || "Swarm node timeout or internal error");
       }
     } catch (err: any) {
       if (err.message === "Production Error: Gemini API Core Connection Failed.") {
@@ -242,7 +244,7 @@ export default function SwarmRoom({ activeModule, drillCoordinates, onClearCoord
       addLog({
         type: 'ERROR',
         source: 'Swarm API',
-        message: err.message || "Interrupted API connection",
+        message: err.message || "Interrupted API connection. All fallback keys exhausted.",
         rawData: err
       });
 
@@ -253,9 +255,9 @@ export default function SwarmRoom({ activeModule, drillCoordinates, onClearCoord
         avatar: "SYS",
         timestamp: new Date().toLocaleTimeString()
       }]);
-    } finally {
-      setLoading(false);
     }
+    
+    setLoading(false);
   };
 
   // Ingest vector database journals

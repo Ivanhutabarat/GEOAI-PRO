@@ -1,112 +1,86 @@
-# 🌍 GeoAI Pro: Multi-Dimensional Geophysics Intelligence Suite (v4.0)
+# GeoAI Pro: Geophysics Intelligence Suite
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Version-4.0%20Alpha-00E5FF?style=for-the-badge&logoColor=white" />
-  <img src="https://img.shields.io/badge/Core%20Engine-Gemini%20Pro-9D00FF?style=for-the-badge&logo=googlegemini&logoColor=white" />
-  <img src="https://img.shields.io/badge/Architecture-Reactive%20Swarm-39FF14?style=for-the-badge&logo=hive&logoColor=black" />
-  <img src="https://img.shields.io/badge/Infrastructure-TitanCore%20v2%20Chamber-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white" />
-  <img src="https://img.shields.io/badge/Stability-Auto--Queue%20Throttling-FF0044?style=for-the-badge&logo=shield&logoColor=white" />
-</p>
-
-GeoAI Pro is a mission-critical, enterprise-grade subsurface analytics suite that bridges the gap between raw geophysical data analysis and real-world socio-economic risk mitigation. By integrating autonomous AI swarms, deterministic geology, macroeconomics, national-level politics, and supply chain logistics, this engine models the true complexity of physical extraction in the real world.
-
-Going far beyond standard algorithmic geophysical tools, this platform simulates a living, breathing multidimensional ecosystem. It turns raw 1D, 2D, and 3D data formats into actionable macro-intelligence, simulating everything from the core physical strata up to the political hearings that determine project viability.
+**SYSTEM STATUS:** `OPERATIONAL`
+**TELEMETRY:** `STABLE`
+**VERSION:** `v4.0.0`
 
 ---
 
-## 🧠 SYSTEM CHAIN OF THOUGHT (HOW THE AI THINKS)
+## 1. Executive Summary
 
-The system operates through a highly logical, step-by-step cognitive pipeline:
+**GeoAI Pro** is an enterprise-grade, end-to-end Geophysics Intelligence Suite designed for advanced subsurface modeling, high-fidelity economic simulation, and rigorous stakeholder consensus. Engineered for the modern exploration and civil engineering sectors, GeoAI Pro completely revolutionizes how geophysical data is ingested, visualized, and acted upon.
 
-1. **Step 1: Ingestion & Matrix Detection** — The engine senses raw `.las`, `.segy`, or `.csv` data, dynamically reading the array shape to decide if it's processing a 1D signal, 2D grid, or 3D volume.
-2. **Step 2: Technical Consensus** — Raw data is handed over and debated by the Master Geo-Synthesizer committee (a specialized board of expert personas) to mathematically determine scientific feasibility and economic viability.
-3. **Step 3: Stakeholder Swarm Simulation** — Technical decisions are thrust into a public hearing sandbox where macro-political AI agents (unions, NGOs, regulators) fiercely debate and lobby for their interests.
-4. **Step 4: Compliance & Logging** — All arguments are strictly grounded in real-world news and systematically archived into a comprehensive, exportable CSV intelligence dossier.
+At the heart of the platform is a sophisticated **multi-agent Swarm Intelligence** architecture. This distributed cognitive engine processes incoming raw field sensor data and synthesizes real-time decisions, simulating complex macro-economic and geotechnical scenarios before a single physical drill penetrates terrestrial strata.
 
 ---
 
-## 🗺️ ARCHITECTURE FRAMEWORK (THE BLUEPRINT)
+## 2. System Architecture & Core Modules
 
-```text
-[RAW FIELD DATA] (.las / .segy / .csv)
-       │
-       ▼
-[INGESTION ENGINE] ───(Shape Detection)───┐
-       │                                  │
-       ▼                                  ▼
-[3D SPATIAL TWIN] <────(Saber-Error)────> [1D/2D PLOTS] (Fallback)
-       │
-       ▼
-[MASTER GEO-SYNTHESIZER] (Technical AI Committee)
-       │
-       ▼
-[SWARM STAKEHOLDER SANDBOX] (Macro-Political AI Arena)
-       │
-       ▼
-[REFERENCE ARCHIVE] (Compliance & CSV Dossier)
+The suite dynamically ingests unstructured and structured data across eight distinct diagnostic disciplines, fusing them into a unified Global GeoData Context.
+
+1. **Seismic (.segy)** - Acoustic wavelet analysis, bright spot detection (hydrocarbon/gas indicators), fault line tracing, and structural hazard identification.
+2. **Well Logging (.las)** - Advanced telemetry including sonic transit times, deep induction resistivity, and rock porosity metrics.
+3. **Spatial Twin (.shp)** - A 3D Spatial Digital Twin mapping absolute virtual drilling coordinates and live slice-plane volumetric models.
+4. **Gravity & Magnetic** - Identification of basement rock structures, salt domes, and regional density anomalies via gradiometry mapping.
+5. **Electrical & EM (.ohm)** - Mapping Schlumberger Vertical Electrical Sounding (VES) resistivity values and bedrock pseudo-sections.
+6. **GPR Waveform (.dzx)** - Near-surface high-resolution hyperbola wavelet analysis and concrete bedrock integrity mapping.
+7. **Rock Geochem (.csv)** - Evaluation of QFL ternary mineral abundances and quantification of rare earth element deposits.
+8. **Meteorology** - Atmospheric and weather integration monitoring storm velocities, hydrological impacts, and seismology offsets.
+
+```mermaid
+graph TD
+    A[Field Sensors & Logs] --> B(Ingestion Port)
+    B --> C1[Seismic]
+    B --> C2[Well Logging]
+    B --> C3[Gravity/Mag]
+    B --> C4[Electrical/EM]
+    C1 --> D{Global GeoDataStore}
+    C2 --> D
+    C3 --> D
+    C4 --> D
+    D --> E((SWARM COGNITIVE ROOM))
+    E --> F[Decision Synthesis]
+    E --> G[3D Spatial Twin]
 ```
 
 ---
 
-## ⚡ CORE MODULE 1: INGESTION & VISUALIZATION ENGINE
+## 3. The "Swarm Cognitive Room"
 
-The ingestion pipeline handles massive and irregular multi-format data matrices autonomously.
+The **Swarm Cognitive Room** serves as the autonomous computational brain of GeoAI Pro. Rather than relying on a single deterministic algorithm or single LLM prompt, the engine orchestrates a massive multi-agent boardroom debate involving **14 active domain specialists**.
 
-* **Universal Dimension Detection:** The engine dynamically reads the ingested array's shape and intelligently routes the variable arrays without requiring manual user intervention.
-* **Saber-Error Architecture:** Built for extreme resilience. If fundamentally incompatible data (e.g., 1D string) is accidentally fed into a 3D module, the Three.js Canvas smoothly unmounts and elegantly falls back to Recharts, completely preventing runtime UI whiteouts.
+**The Specialist Roster:**
+Dr. Vance, Tanya Rostova, Kenji Takahashi, Sarah Lin, Michael Chen, Alex Rahman, Cpt. Declan Hayes, Sven Olsen, Audi Santosa, Andi Wijaya, Tariq Al-Hashimi, Eleanor Vance, Lars Mikkelsen, Chloe Mendes.
 
----
-
-## 🔬 CORE MODULE 2: MASTER GEO-SYNTHESIZER (TECHNICAL COMMITTEE)
-
-A highly technical, 8-agent AI board that independently analyzes raw field data to reach a scientific consensus before entering the public realm:
-* **Geophysics Lead (Dr. Marcus Vance):** Focuses on structural anomalies, inversion connections, and conductive strata.
-* **Geology/Stratigraphy Lead (Dr. Elena Rostova):** Analyzes formations, lithology, and reservoir traps.
-* **Chief Economist (Kenji Takahashi):** Calculates ROI, feasibility, and predicts break-even timelines.
-* **HSE & Drilling Foremen:** Evaluates physical drilling risks, casing tolerances, and hardware uptime.
+**Simulation Parameters:**
+Whenever drilling coordinates are nominated or raw data is parsed, the Swarm Engine engages in high-speed, multi-perspective debates. The agents forcefully negotiate over:
+*   **Technical Geophysical Inversion:** Reconciling anomalous sub-surface sensor readings.
+*   **Macro-Economy & Supply Chain:** Logistics tracking, state-owned enterprise (SOE) compliance, and multi-billion-dollar contractor estimations.
+*   **Social & Watchdog Dynamics:** Evaluating environmental risk, civil consent, NGO optics, and regulatory compliance.
 
 ---
 
-## 🏛️ CORE MODULE 3: SWARM STAKEHOLDER SANDBOX (THE ARENA)
+## 4. Technical Specifications
 
-This is the macro-political engine. Geological plans do not survive in a vacuum; they must survive the swarm. 
+GeoAI Pro is built on a resilient, high-performance web architecture designed for uninterrupted mission-critical deployment.
 
-**The 12 Base Agents explicitly grouped:**
-* **🏛️ Regulators:** Ministry of Energy (ESDM), Provincial Gov (Bupati/Pemda), Env Agency (Compliance), Parliament Member.
-* **💼 Capital & Operations:** Investor Board (ROI), Objective Seismic Sensor Grid (IoT Warnings).
-* **🌍 Social & Chaos:** Community Rep (Citizens), Global NGO, Local Syndicate / Ormas (Security fees & preman), Mass Media (Journalists), Security Apparatus (Police/Military), Academic Observer.
-
-**DYNAMIC FACTION SPAWNER:** The core AI orchestrator acts as a true Dungeon Master. By analyzing the trajectory of the debate, it can dynamically spawn hidden entities (e.g., Pertamina VPs, Rig Contractors, Customs Agents, Tanker Logistics) into the matrix when supply chains or local state-owned assets are jeopardized.
-
----
-
-## ♟️ LIVE STANCE MATRIX & RAG GROUNDING
-
-* **Live Stance Board:** Features a dynamic 3-column UI matrix (**🟢 PRO | ⚪ NEUTRAL | 🔴 KONTRA**). You watch agent profile cards definitively shift and re-align in real-time as they lobby, threaten, and negotiate with one another during the simulation.
-* **RAG Historical Grounding:** To prevent fiction, agents root their aggressive arguments in real-world disaster studies and historical conflict data (e.g., Lumpur Lapindo blowouts, Freeport divestment, and Wadas social conflicts).
+*   **Backend:** Node.js / TypeScript Engine utilizing Express for API routing and complex middleware validation.
+*   **Frontend:** React 18 with Tailwind CSS for high-density industrial interfaces.
+*   **3D Engine:** Three.js / React Three Fiber for the *Spatial Twin*, executing live shaders and volumetric depth-clipping.
+*   **State Management:** Zustand (`GeoDataStore`) for low-latency, cross-module data synchronization.
+*   **Intelligence:** Multi-agent Swarm Consensus via GenAI (Google Gemini), utilizing structured JSON schema output for machine-readable logic parsing.
+*   **API Strategy & Telemetry:** 
+    *   **Global Failover Service:** An automated, self-healing API queue manager with dynamic multi-key rotation.
+    *   Designed to intercept `429 Rate Limit` and `503 Service Unavailable` signals, intelligently cycling keys to guarantee **zero-downtime persistence** and continuous swarm processing.
 
 ---
 
-## 📂 REFERENCE ARCHIVE & COMPLIANCE DOSSIER
+## 5. Core Features
 
-An independent vault interface designed for enterprise audit readiness. All cited historical news sources, reference URLs, and situational metadata utilized by the Swarm are securely stored. The system provides a 1-click **"DOWNLOAD DOSSIER"** feature, exporting the entire intelligence debate and compliance matrix into a single, structured CSV file.
-
----
-
-## 🛡️ IMMUNE SYSTEM: TELEMETRY & ERROR HANDLING
-
-Protecting the neural pathways with edge-level resilience and intelligent fallback handling:
-
-* **`useApiQueue` Manager:** A custom sequential request throttler that applies artificial buffering delays. By queuing massive multi-module outbound LLM calls instead of executing concurrent `Promise.all` floods, it totally obliterates API Free-Tier Error 429s (Resource Exhausted).
-* **Telemetry Fail-Safe:** When a backend connection dies completely or times out, the system swallows the raw JSON stack trace. To keep immersion perfectly intact, it injects an immersive thematic alert:
-
-> `[TELEMETRY SIGNAL LOST: Connection to Swarm Network interrupted due to extreme server interference. Awaiting manual override...]`
+*   **Real-time 3D Geological Modelling:** Fully interactive volumetric rendering of sub-surface lithography, complete with Z-axis depth slicing and data-point overlays.
+*   **Dynamic API Failover Engine:** Unbreakable AI connectivity. The system intelligently monitors network telemetry and automatically hot-swaps generation keys if provider interference is detected.
+*   **Stakeholder Consensus Simulator:** Emulate real-world bureaucratic, financial, and geotechnical friction through autonomous multi-agent debates.
+*   **Unified Field-Data Ingestion & Synthesis:** Drag-and-drop parsing for disparate field file formats, instantly standardizing data into the global context vector.
 
 ---
-
-<div align="center">
-  <br />
-  <i>Developed by Ivan Krisopras Hutabarat — Geophysical Engineering, Institut Teknologi Sumatera (ITERA).</i>
-  <br />
-  <strong>Powered by the TitanCore Chamber v2 Infrastructure.</strong>
-</div>
+*Developed for unparalleled geotechnical superiority.*

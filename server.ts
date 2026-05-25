@@ -123,6 +123,9 @@ async function startWhatsAppConnection() {
 startWhatsAppConnection();
 
 // --- API routes ---
+import { whatsappWebhookHandler } from "./src/api/webhook/whatsapp.js";
+
+app.post("/api/webhook/whatsapp", whatsappWebhookHandler);
 
 // 1. Health status
 app.get("/api/health", (req, res) => {
@@ -206,16 +209,21 @@ app.get("/api/ingest-journals", (req, res) => {
 
 // 4. Server-side Swarm multi-agent debate engine utilizing gemini-3.5-flash
 app.post("/api/swarm/debate", async (req, res) => {
-  const { message, activeModule, coordinates, history, targetAgent } = req.body;
+  const { message, activeModule, coordinates, history, targetAgent, apiKey } = req.body;
 
   try {
-    if (!process.env.GEMINI_API_KEY) {
+    const effectiveKey = apiKey || process.env.GEMINI_API_KEY;
+    if (!effectiveKey) {
       return res.status(500).json({
         success: false,
         error: "API key not configured"
       });
     }
-    const ai = getGeminiClient();
+    const ai = new GoogleGenAI({ 
+      apiKey: effectiveKey,
+      httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+    });
+
 
     // Mapping module context
     const contextMap: Record<string, string> = {
@@ -243,27 +251,27 @@ app.post("/api/swarm/debate", async (req, res) => {
     const targetAgentInstruction = targetAgent ? `You must ONLY generate a single response impersonating the agent named "${targetAgent}".` : `You must simulate the debate amongst the clusters by generating three consecutive responses.`;
 
     const systemInstruction = `You are a Dungeon Master running a massive macro-economy simulation involving dozens of interconnected entities (Logistics, Tankers, SOEs like Pertamina, Private Contractors like Shell, Unions, Interns, Export/Import regulators, NGOs).
-If the user greets you casually, reply naturally and warmly as the Swarm Orchestrator, reminding them to import a raw dataset or point-click coordinates.
+If the user greets you casually, reply naturally and warmly as the Swarm Orchestrator, reminding them to import a raw dataset or point-click coordinates. THIS REPLY MUST STILL BE FORMATTED AS A VALID JSON ARRAY WITH ONE MESSAGE OBJECT.
 Only generate a full simulation debate if raw data is submitted or direct drill coordinates are designation.
 
 You have access to a massive macro-economy. 
-- Organically introduce macro-elements (supply chain, state-owned vs private interests, regulators, local syndicates) into the arguments to simulate a living, breathing multi-billion dollar industry.
+- Organically introduce macro-elements into the arguments to simulate a living, breathing multi-billion dollar industry.
 - ${targetAgentInstruction}
 
-Produce the final swarm response strictly structured as a JSON array of message objects:
+Produce the final swarm response strictly structured as a JSON array of message objects (and nothing else):
 [
   {
-    "agent": "${targetAgent ? targetAgent : 'Name (e.g. Community_Rep, Logistics_Fleet_Cmd, Ministry_Energy)'}",
+    "agent": "${targetAgent ? targetAgent : 'Name (e.g. Community_Rep, Logistics_Fleet)'}",
     "role": "Specific Domain Leader",
     "faction": "Exact match to one of: '🏛️ GOVERNMENT & REGULATORS', '💼 CORPORATE & CAPITAL', '⚙️ OPERATIONS & SUPPLY CHAIN', '🌍 SOCIAL & WATCHDOGS'",
     "stance": "PRO, KONTRA, NEUTRAL, or PENDING",
     "reasoning": "Deductive logic chain. Analysis of data trends. Step-by-step thinking...",
     "content": "Professional opinion focusing on metrics and parameters...",
-    "avatar": "Agent Initials (e.g. CR, LF, ME)"
+    "avatar": "Agent Initials (e.g. CR, LF)"
   }${targetAgent ? '' : ',\n  ...'}
 ]
 
-Write each opinion in highly technical, expert-level English with precise details. Keep each description to one dense paragraph. Return ONLY the raw valid JSON array, strictly avoiding markdown block wraps like \`\`\`json.`;
+Write each opinion in highly technical, expert-level English. Return ONLY the raw valid JSON array.`;
 
     // Construct the conversational thread context
     const previousChat = history && history.length > 0
@@ -281,7 +289,7 @@ ${previousChat}
 Incoming operator prompt or data:
 "${message}"
 
-Formulate the simulated swarm debate output. Remember: only do deep geological consensus if raw field data or drill coordinates are specified. Otherwise, speak casually.`;
+Formulate the simulated swarm debate output. Remember: only do deep geological consensus if raw field data or drill coordinates are specified. Otherwise, speak casually but STRICTLY FORMATTED AS JSON.`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
@@ -289,7 +297,8 @@ Formulate the simulated swarm debate output. Remember: only do deep geological c
       config: {
         systemInstruction,
         temperature: 0.2,
-        tools: [{ googleSearch: {} }]
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json"
       }
     });
 
@@ -311,13 +320,21 @@ Formulate the simulated swarm debate output. Remember: only do deep geological c
     });
 
   } catch (error: any) {
-    console.error("Gemini Swarm Debate Error:", error);
-    
-    // Bubble up 429 Rate Limit error so the client Queue Manager can catch and retry
     const errString = error?.message || error?.toString() || "";
-    if (error?.status === 429 || errString.includes("429") || errString.toLowerCase().includes("resource exhausted") || errString.toLowerCase().includes("quota")) {
-      return res.status(429).json({ error: "Rate limit exceeded. Queued for retry." });
+    
+    // Bubble up invalid API key errors so queue manager triggers failover
+    if (error?.status === 400 || error?.status === 401 || errString.includes("API key not valid") || errString.includes("API_KEY_INVALID")) {
+      console.warn("Gemini API Key warning: Validation failed. Queue manager will attempt failover.");
+      return res.status(500).json({ error: "API key not valid" });
     }
+
+    // Bubble up 429 Rate Limit and 503 errors so the client Queue Manager can catch and retry
+    if (error?.status === 429 || error?.status === 503 || errString.includes("429") || errString.includes("503") || errString.toLowerCase().includes("resource exhausted") || errString.toLowerCase().includes("quota") || errString.toLowerCase().includes("unavailable")) {
+      console.warn("Gemini Rate limit or Service Unavailable (503). Queued for retry.");
+      return res.status(429).json({ error: "Rate limit or high demand. Queued for retry." });
+    }
+    
+    console.error("Gemini Swarm Debate Error:", error);
 
     // Graceful fallback with immersive in-character system message, not raw JSON errors
     res.json({
@@ -338,16 +355,20 @@ Formulate the simulated swarm debate output. Remember: only do deep geological c
 
 // 5. Master AI Synthesizer endpoint
 app.post("/api/master-synthesize", async (req, res) => {
-  const { message, globalData, history } = req.body;
+  const { message, globalData, history, apiKey } = req.body;
 
   try {
-    if (!process.env.GEMINI_API_KEY) {
+    const effectiveKey = apiKey || process.env.GEMINI_API_KEY;
+    if (!effectiveKey) {
       return res.status(500).json({
         success: false,
         error: "API key not configured"
       });
     }
-    const ai = getGeminiClient();
+    const ai = new GoogleGenAI({ 
+      apiKey: effectiveKey,
+      httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+    });
 
     const systemInstruction = `You are the orchestrator of an 8-specialist boardroom (Vance, Rostova, Takahashi, Lin, Chen, Rahman, Mendez, Hayes). When the user asks a global question, synthesize the viewpoints of all 8 domains to formulate a final operational decision based on the global context data.
 You have real-time access to a multi-disciplinary global dataset containing seismic data, well logs, gravity/magnetic anomalies, electrical resistivity profiles, and economic metrics. 
@@ -382,13 +403,21 @@ Always justify your answers by quoting specific values or trends from the provid
     });
 
   } catch (error: any) {
-    console.error("Master Synthesize Error:", error);
-    
-    // Bubble up 429 Rate Limit error so the client Queue Manager can catch and retry
     const errString = error?.message || error?.toString() || "";
-    if (error?.status === 429 || errString.includes("429") || errString.toLowerCase().includes("resource exhausted") || errString.toLowerCase().includes("quota")) {
-      return res.status(429).json({ error: "Rate limit exceeded. Queued for retry." });
+
+    // Bubble up invalid API key errors so queue manager triggers failover
+    if (error?.status === 400 || error?.status === 401 || errString.includes("API key not valid") || errString.includes("API_KEY_INVALID")) {
+      console.warn("Master Synthesize API Key warning: Validation failed. Queue manager will attempt failover.");
+      return res.status(500).json({ error: "API key not valid" });
     }
+
+    // Bubble up 429 Rate Limit and 503 errors so the client Queue Manager can catch and retry
+    if (error?.status === 429 || error?.status === 503 || errString.includes("429") || errString.includes("503") || errString.toLowerCase().includes("resource exhausted") || errString.toLowerCase().includes("quota") || errString.toLowerCase().includes("unavailable")) {
+      console.warn("Master Synthesize Rate limit or Service Unavailable (503). Queued for retry.");
+      return res.status(429).json({ error: "Rate limit or high demand. Queued for retry." });
+    }
+
+    console.error("Master Synthesize Error:", error);
 
     res.json({ 
       success: true, 

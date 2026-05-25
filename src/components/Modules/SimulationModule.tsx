@@ -19,16 +19,19 @@ import { Agent, SimulationEvent } from '../../types';
 import { cn } from '../../lib/utils';
 import { useGlobalGeoContext } from '../../context/GlobalGeoContext';
 import { useApiQueue } from '../../hooks/useApiQueue';
+import { globalSwarmEngine } from '../../lib/SwarmEngine';
 
 export default function SimulationModule() {
   const { globalData } = useGlobalGeoContext();
   const { fetchQueued, isProcessing, statusMessage } = useApiQueue();
-  const [agents, setAgents] = useState<Agent[]>([
-    { id: '1', name: 'Env_Agency', role: 'Regulation Standards', personality: 'Strict, focused on dynamic soil subsidence.', memory: [], status: 'idle', faction: '🏛️ GOVERNMENT & REGULATORS', stance: 'PENDING' },
-    { id: '2', name: 'SOE_Representative', role: 'National Assets', personality: 'Maximizes state revenue, guards against foreign dominance.', memory: [], status: 'idle', faction: '💼 CORPORATE & CAPITAL', stance: 'PRO' },
-    { id: '3', name: 'Rig_Contractor', role: 'Operations', personality: 'Pragmatic, focuses on hardware uptime and safety.', memory: [], status: 'idle', faction: '⚙️ OPERATIONS & SUPPLY CHAIN', stance: 'PRO' },
-    { id: '4', name: 'Community_Rep', role: 'Social Impact', personality: 'Skeptical of mining, values water safety.', memory: [], status: 'idle', faction: '🌍 SOCIAL & WATCHDOGS', stance: 'KONTRA' },
-  ]);
+  const [agents, setAgents] = useState<Agent[]>([]);
+
+  // Update state initialization so the Swarm Sandbox mounts correctly
+  useEffect(() => {
+    // Phase 2 risk metrics simulated as 0.75 for initialization
+    globalSwarmEngine.calculateInitialStance(0.75);
+    setAgents(globalSwarmEngine.getAgents());
+  }, []);
   const [events, setEvents] = useState<SimulationEvent[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [predictionGoal, setPredictionGoal] = useState('Predict soil stability impact after 6 months of continuous borehole extraction.');
@@ -121,6 +124,11 @@ export default function SimulationModule() {
       await Promise.all(fetchPromises);
 
       if (mounted) {
+        globalSwarmEngine.iterateConsensus();
+        if (globalSwarmEngine.getPhase() === 3) {
+          // Deadlock resolved, overwrite view state
+          setAgents([...globalSwarmEngine.getAgents()]);
+        }
         setIsRunning(false); // Stop debate when all agents have spoken
       }
     };

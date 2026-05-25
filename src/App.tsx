@@ -4,8 +4,44 @@
  * Licensed under the Apache License, Version 2.0
  */
 
+import React, { useState, useEffect, Component, ReactNode } from 'react';
 
-import React, { useState, useEffect } from 'react';
+console.log("App mounted successfully");
+
+class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error: Error | null}> {
+  constructor(props: {children: ReactNode}) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 font-mono text-red-500 bg-black min-h-screen">
+          <h1 className="text-2xl font-bold mb-4">CRITICAL SYSTEM FAILURE</h1>
+          <p className="mb-4">The application crashed while rendering.</p>
+          <pre className="text-xs bg-[#111] p-4 rounded border border-red-900 block overflow-auto">
+            {this.state.error?.message}
+            {this.state.error?.stack}
+          </pre>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-red-900 text-white hover:bg-red-800 rounded"
+          >
+            REBOOT SYSTEM
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children; 
+  }
+}
+
 import { 
   Activity, 
   Map as MapIcon, 
@@ -33,9 +69,10 @@ import {
 import { cn } from './lib/utils';
 
 // Core Imports
+import CentralCommand from './components/Modules/CentralCommand';
 import SeismicModule from './components/Modules/SeismicModule';
 import WellLoggingModule from './components/Modules/WellLoggingModule';
-import SpatialModule from './components/Modules/SpatialModule';
+import SpatialTwin from './components/Modules/SpatialTwin';
 import SimulationModule from './components/Modules/SimulationModule';
 import SystemDiagnostics from './components/Modules/SystemDiagnostics';
 import MasterGeoSynthesizer from './components/Modules/AIConsultantModule';
@@ -49,7 +86,7 @@ import MeteorologyModule from './components/Modules/MeteorologyModule';
 
 // Shared Components
 import SwarmRoom from './components/Shared/SwarmRoom';
-import RadarWidget from './components/Shared/RadarWidget';
+import SeismicRadar from './components/Shared/SeismicRadar';
 import FileUploader from './components/Shared/FileUploader';
 
 // Hooks
@@ -173,8 +210,8 @@ function AppContent() {
         </nav>
 
         {/* Embedded Radar Warning Scan Widget */}
-        <div className="p-3 border-t border-[#222] flex justify-center bg-black/40">
-          <RadarWidget />
+        <div className="p-3 border-t border-[#222] flex justify-center bg-black/40 h-48 overflow-hidden">
+          <SeismicRadar />
         </div>
       </aside>
 
@@ -226,10 +263,10 @@ function AppContent() {
             >
               <Routes>
                 <Route path="/" element={<Navigate to={`/${GeoModule.DASHBOARD}`} replace />} />
-                <Route path={`/${GeoModule.DASHBOARD}`} element={<DashboardModule />} />
+                <Route path={`/${GeoModule.DASHBOARD}`} element={<CentralCommand />} />
                 <Route path={`/${GeoModule.SEISMIC}`} element={<SeismicModule />} />
                 <Route path={`/${GeoModule.WELL_LOGGING}`} element={<WellLoggingModule />} />
-                <Route path={`/${GeoModule.SPATIAL}`} element={<SpatialModule onInteractCoords={setDrillCoords} />} />
+                <Route path={`/${GeoModule.SPATIAL}`} element={<SpatialTwin />} />
                 <Route path={`/${GeoModule.GRAVITY_MAG}`} element={<GravityMagModule />} />
                 <Route path={`/${GeoModule.ELECTRICAL}`} element={<ElectricalEMModule />} />
                 <Route path={`/${GeoModule.GPR}`} element={<GPRModule />} />
@@ -287,9 +324,11 @@ function AppContent() {
 
 export default function App() {
   return (
-    <HashRouter>
-      <AppContent />
-    </HashRouter>
+    <ErrorBoundary>
+      <HashRouter>
+        <AppContent />
+      </HashRouter>
+    </ErrorBoundary>
   );
 }
 
