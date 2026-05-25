@@ -9,7 +9,8 @@ export enum GeoModule {
   GEOCHEM = 'geochem',
   GPR = 'gpr',
   METEO = 'meteo',
-  AI_CONSULTANT = 'ai-consultant'
+  AI_CONSULTANT = 'ai-consultant',
+  SIMULATION = 'simulation'
 }
 
 export type GeoFileType = 
@@ -23,6 +24,23 @@ export type GeoFileType =
   | 'csv' | 'txt' | 'dat' // General Data
   | 'xlsx' | 'xyz' | 'grd' // Geochem/Bathymetry
   | 'ply' | 'laz';        // Drone/Lidar
+
+export interface Agent {
+  id: string;
+  name: string;
+  role: string;
+  personality: string;
+  memory: string[];
+  status: 'active' | 'idle' | 'interacting';
+}
+
+export interface SimulationEvent {
+  id: string;
+  timestamp: Date;
+  senderId: string;
+  targetId: string | 'world';
+  content: string;
+}
 
 export interface GeoFile {
   id: string;

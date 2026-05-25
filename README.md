@@ -1,50 +1,109 @@
-# GeoAI Pro 🌍
+# GeoAI Pro: Deep Multi-Agent Swarm Intelligence & Geophysical Digital Twin Suite 🌍🌋
 
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+**GeoAI Pro** is a professional, full-stack geophysics exploration suite designed for raw log analysis, real-time 3D subsurface twin mapping, and automated AI swarm consensus modeling.
 
-# Run and deploy your AI Studio app
+Built during the global cloud space hackathon, GeoAI Pro represents a quantum leap in mineral exploration and reservoir risk profiling. By combining direct hardware-level sensor ingestion, local messaging telemetry, and Gemini-powered swarm orchestrations, we turn days of offline multidisciplinary debates into seconds of active, unified consensus.
 
-This contains everything you need to run your app locally.
+---
 
-View your app in AI Studio: https://ai.studio/apps/a83d1cd8-f462-4b95-9b52-9dd679d8af95
+## 🚀 The Core Problem & Our Vision
 
-## Run Locally
+Deep subsurface drilling is an ultra-high-stakes gamble:
+1. **Siloed Science:** Physicists, structural geologists, and resource economists rarely speak the same format. Data from Seismic reflectives, Schlumberger soundings, and mineral core logs remain trapped in fragmented formats like `.segy`, `.las`, or `.csv`.
+2. **Analysis Latency:** Bringing together regional specialists to agree on deep sills, mudstone faults, and dry sandstone fractures takes weeks of manual paperwork.
 
-**Prerequisites:**  Node.js
+**GeoAI Pro solves this completely.** By combining high-fidelity WebGL digital twins with a **100+ multi-agent swarm intellect**, the platform performs automatic raw log ingestion, runs real-time inversion models, and compiles ironclad Prospect Reports instantly.
 
+---
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 🏛️ Swarm Intelligence Architecture
 
+Our platform utilizes an asynchronous consensus loop mapping three elite, hyper-focused specialist agent clusters to debate your data in parallel:
 
+```
+                [ Operator / Inbound Telemetry (.las, .csv) ]
+                                     │
+                                     ▼
+                      [ System Swarm Orchestrator ]
+                                     │
+         ┌───────────────────────────┼───────────────────────────┐
+         ▼                           ▼                           ▼
+  [ Geophysics Cluster ]      [ Geology Cluster ]     [ Economics Cluster ]
+  (Dr. Marcus Vance)          (Dr. Elena Rostova)     (Mr. Kenji Takahashi)
+  ├── Bedrock Inversion       ├── Lithology Horizon   ├── Drilling NPV Rate
+  ├── Wavelet Denoising       ├── Strata Faults       ├── Operational CAPEX
+  └── Apparent Resistivity    └── Pore Fluid Check    └── Risk Anomaly ROI
+         │                           │                           │
+         └───────────────────────────┼───────────────────────────┘
+                                     ▼
+                        [ Consolidated Consensus ]
+                                     │
+                                     ▼
+                      [ Generated Prospect Report ]
+```
 
-> A State-of-the-Art Geophysics Intelligence Platform for Deep Analysis & 3D Visualization.
+1. **Geophysics Cluster (Led by Dr. Marcus Vance):** Focused entirely on raw physics, signal-to-noise filters, 3D inversion modeling, and sound wave deconvolution.
+2. **Geology Cluster (Led by Dr. Elena Rostova):** Grounding Vance’s physics against lithological matrices, stratigraphic horizon boundaries, and ancient mineral zones.
+3. **Resource Economics Cluster (Led by Mr. Kenji Takahashi):** Translating subsurface anomalies into business NPV, ROI charts, local environment risk, and drilling-hazard profiles.
 
-GeoAI Pro is an advanced, high-fidelity platform designed to bridge the gap between raw geophysical data and actionable insights. Engineered for professional workflows, it combines WebGL rendering with Generative AI to deliver intelligent anomaly detection, automated denoising, and immersive subsurface modeling.
+---
 
-## 🚀 Core Capabilities
+## 💎 Features at a Glance
 
-*   **Comprehensive Data Hub:** Native ingestion and processing for industry-standard formats including SEGY (Seismic), LAS (Well Logging), MSEED (Microseismic), and Spatial data (SHP, KML, GeoTIFF, GeoJSON).
-*   **Gemini-Powered AI Consultant:** Integrated with `gemini-3-flash-preview` to provide expert-level interpretations, automated lithology detection, and structural anomaly scanning.
-*   **High-Fidelity Seismic Visualizer:** Custom HTML5 Canvas engine optimized for rendering 2D seismic wiggles and density plots with real-time gain adjustments.
-*   **Interactive Well Log Analytics:** Advanced multi-track plotting for LAS files featuring cross-over alerts and automated zone identification.
-*   **Immersive 3D Spatial Modeling:** Holistic site assessments and terrain visualizations powered by Three.js for precise depth and volume analysis.
+### 1. Dual-Mode Data Ingestion Panel 📥
+- **Field Mode (Quick Paste):** High-contrast styled `<textarea>` with built-in templates. Allows geologists on rugged field rigs to paste comma-delimited vertical soundings or bedrock matrix readings directly.
+- **Lab Mode (Local Filereader):** Integration with HTML5 `FileReader`. Upload `.las`, `.csv`, or `.txt` logs to extract ASCII data instantly on the client side, populating graphs and sections in real-time.
 
-## 🛠️ Tech Stack
+### 2. Live 2D Bedrock Resistivity Inversion Section 📈
+- Interactive grid blocks illustrating Wenner & Schlumberger active depths.
+- Uses heatmaps styled using classical geophysical palettes (Deep Blue Conductive Brines $\rightarrow$ Saturated Clay Greens $\rightarrow$ Quartz Reds).
+- Interactive tooltip layers tracking Chainage nodes.
 
-*   **Core:** React 19, TypeScript, Vite
-*   **Styling:** Tailwind CSS
-*   **Visualization:** Three.js (3D), D3.js & Recharts (2D), HTML5 Canvas
-*   **AI & Infrastructure:** Google Gemini API, Google Cloud Run
+### 3. WhatsApp Baileys Telemetry Integration 📱
+- Powered by `@whiskeysockets/baileys` and local `useMultiFileAuthState`.
+- Node.js backend captures secure WhatsApp association events, compiles the verification stream to Base64 image tags, and streams live QR pairing codes directly to the UI.
+- Field crews can send raw logging attachments directly to the WhatsApp bot—the system catches the message, extracts the files, and feeds them to the AI debate.
 
-## ⚙️ Quick Start
+### 4. GraphRAG Augmented Memory 📚
+- Drag-and-drop research paper indexing to ground AI swarm interpretation directly against peer-reviewed academic literature.
 
-1. Clone the repository:
-   ```bash
-   git clone [https://github.com/Ivanhutabarat/GeoAI-Pro.git](https://github.com/Ivanhutabarat/GeoAI-Pro.git)
-   cd GeoAI-Pro
+---
+
+## 🛠️ Stack & Engineering
+
+- **Frontend:** React 19, Vite, Tailwind CSS, Lucide Icons, Recharts, Motion (React)
+- **Backend:** Express, Node.js, TSX runtime compiler
+- **LLM Engine:** `@google/genai` TypeScript SDK utilizing **`gemini-3.5-flash`** for structured JSON debate sequences
+- **Telecom:** `@whiskeysockets/baileys` multi-device engine, `qrcode`, `pino`
+
+---
+
+## ⚙️ Environment Variables Setup
+
+Configure your local or production environment in `.env`:
+
+```env
+# Geophysics Swarm Accelerator key
+GEMINI_API_KEY=your_actual_gemini_api_key_here
+```
+
+---
+
+## 🦾 Production Commands
+
+To install, compile, and run the system with stand-alone node servers:
+
+```bash
+# 1. Install workspace dependencies
+npm install
+
+# 2. Build client bundle and compile backend server to single commonJS artifact
+npm run build
+
+# 3. Boot production server on Port 3000
+npm run start
+```
+
+---
+
+*GeoAI Pro is designed for geoscientists, drill operators, and mining asset managers who want to reduce exploration uncertainty to zero.* 🚀

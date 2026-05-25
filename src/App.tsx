@@ -20,7 +20,9 @@ import {
   AlertCircle,
   CheckCircle2,
   Cpu,
-  Unplug
+  Unplug,
+  MessageSquareCode,
+  Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -30,10 +32,23 @@ import {
 } from './types';
 import { cn } from './lib/utils';
 
-import AIConsultantModule from './components/Modules/AIConsultantModule';
+// Core Imports
 import SeismicModule from './components/Modules/SeismicModule';
 import WellLoggingModule from './components/Modules/WellLoggingModule';
 import SpatialModule from './components/Modules/SpatialModule';
+import SimulationModule from './components/Modules/SimulationModule';
+import MasterGeoSynthesizer from './components/Modules/AIConsultantModule';
+
+// Activated Spatial Modules
+import GravityMagModule from './components/Modules/GravityMagModule';
+import ElectricalEMModule from './components/Modules/ElectricalEMModule';
+import GPRModule from './components/Modules/GPRModule';
+import GeochemModule from './components/Modules/GeochemModule';
+import MeteorologyModule from './components/Modules/MeteorologyModule';
+
+// Shared Components
+import SwarmRoom from './components/Shared/SwarmRoom';
+import RadarWidget from './components/Shared/RadarWidget';
 import FileUploader from './components/Shared/FileUploader';
 
 // --- Components ---
@@ -51,21 +66,21 @@ const SidebarItem = ({
   <button
     onClick={onClick}
     className={cn(
-      "w-full flex items-center gap-3 px-4 py-3 transition-colors duration-200 border-l-2",
+      "w-full flex items-center gap-3 px-4 py-3 transition-colors duration-200 border-l-2 text-left cursor-pointer",
       active 
         ? "bg-white/5 border-[#FF5722] text-white" 
         : "border-transparent text-[#888888] hover:text-white hover:bg-white/5"
     )}
   >
-    <Icon size={18} className={active ? "text-[#FF5722]" : ""} />
-    <span className="text-sm font-medium tracking-tight">{label}</span>
+    <Icon size={16} className={active ? "text-[#FF5722]" : ""} />
+    <span className="text-xs font-semibold tracking-tight">{label}</span>
   </button>
 );
 
 const ModuleHeader = ({ title, subtitle }: { title: string, subtitle?: string }) => (
-  <div className="mb-8">
-    <h1 className="text-2xl font-semibold tracking-tight text-white mb-1 uppercase italic font-mono">{title}</h1>
-    {subtitle && <p className="text-sm text-[#888888]">{subtitle}</p>}
+  <div className="mb-6">
+    <h1 className="text-xl font-bold tracking-tight text-white mb-0.5 uppercase italic font-mono">{title}</h1>
+    {subtitle && <p className="text-[11px] text-[#888888]">{subtitle}</p>}
   </div>
 );
 
@@ -74,45 +89,65 @@ export default function App() {
   const [activeModule, setActiveModule] = useState<GeoModule>(GeoModule.DASHBOARD);
   const [files, setFiles] = useState<GeoFile[]>([]);
   const [isUploaderOpen, setIsUploaderOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  
+  // Track dynamic clicks on the Spatial 3D Map
+  const [drillCoords, setDrillCoords] = useState<{ x: number; y: number; z: number } | null>(null);
+
+  // Monitor active system clock
+  const [systemClock, setSystemClock] = useState("");
+  useEffect(() => {
+    setSystemClock(new Date().toLocaleTimeString());
+    const interval = setInterval(() => {
+      setSystemClock(new Date().toLocaleTimeString());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleUpload = (newFiles: File[]) => {
-    // Mocking ingestion
     const geoFiles: GeoFile[] = newFiles.map(f => ({
       id: Math.random().toString(36).substr(2, 9),
       name: f.name,
       size: f.size,
       type: f.name.split('.').pop() as any,
-      module: GeoModule.SEISMIC, // Default
+      module: getModuleFromExtension(f.name.split('.').pop() || ""),
       uploadedAt: new Date(),
       status: 'raw'
     }));
     setFiles(prev => [...prev, ...geoFiles]);
   };
 
+  const getModuleFromExtension = (ext: string): GeoModule => {
+    const lower = ext.toLowerCase();
+    if (lower === 'sgy' || lower === 'segy') return GeoModule.SEISMIC;
+    if (lower === 'las') return GeoModule.WELL_LOGGING;
+    if (lower === 'shp' || lower === 'kml' || lower === 'tiff') return GeoModule.SPATIAL;
+    return GeoModule.DASHBOARD;
+  };
+
   return (
     <div className="flex h-screen bg-[#111111] text-white overflow-hidden font-sans">
-      {/* Sidebar */}
-      <aside className="w-64 border-r border-[#333333] flex flex-col pt-6">
-        <div className="px-6 mb-10">
+      
+      {/* Sidebar navigation */}
+      <aside className="w-56 border-r border-[#333333] flex flex-col pt-4 bg-[#141414] shrink-0">
+        <div className="px-5 mb-6">
           <div className="flex items-center gap-2 mb-1">
             <div className="w-6 h-6 bg-[#FF5722] rounded-sm flex items-center justify-center">
               <Zap size={14} className="text-black" />
             </div>
-            <span className="text-lg font-bold tracking-tighter uppercase italic">GeoAI Pro</span>
+            <span className="text-md font-bold tracking-tighter uppercase italic">GeoAI Pro</span>
           </div>
-          <p className="text-[10px] text-[#555555] font-mono leading-none">v3.1 // ADVANCED ANALYTICS</p>
+          <p className="text-[9px] text-[#FF5722] font-mono leading-none font-bold uppercase tracking-widest">Digital Twin v4.0</p>
         </div>
 
-        <nav className="flex-1 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 space-y-0.5 overflow-y-auto font-mono scrollbar-thin">
           <SidebarItem 
             icon={LayoutDashboard} 
-            label="Dashboard" 
+            label="Command Center" 
             active={activeModule === GeoModule.DASHBOARD} 
             onClick={() => setActiveModule(GeoModule.DASHBOARD)} 
           />
-          <div className="px-6 py-2">
-            <span className="text-[10px] uppercase tracking-widest text-[#444444] font-bold">Data Modules</span>
+          <div className="px-4 py-2">
+            <span className="text-[9px] uppercase tracking-widest text-[#444] font-bold">Primary Arrays</span>
           </div>
           <SidebarItem 
             icon={Waves} 
@@ -128,10 +163,14 @@ export default function App() {
           />
           <SidebarItem 
             icon={MapIcon} 
-            label="Spatial (.shp, .kml)" 
+            label="Spatial Twin (.shp)" 
             active={activeModule === GeoModule.SPATIAL} 
             onClick={() => setActiveModule(GeoModule.SPATIAL)} 
           />
+          
+          <div className="px-4 py-2">
+            <span className="text-[9px] uppercase tracking-widest text-[#444] font-bold">Sensing Modules</span>
+          </div>
           <SidebarItem 
             icon={Gem} 
             label="Gravity & Magnetic" 
@@ -146,13 +185,13 @@ export default function App() {
           />
           <SidebarItem 
             icon={Unplug} 
-            label="GPR Analysis" 
+            label="GPR Waveform" 
             active={activeModule === GeoModule.GPR} 
             onClick={() => setActiveModule(GeoModule.GPR)} 
           />
           <SidebarItem 
             icon={Thermometer} 
-            label="Geochemistry" 
+            label="Rock Geochem" 
             active={activeModule === GeoModule.GEOCHEM} 
             onClick={() => setActiveModule(GeoModule.GEOCHEM)} 
           />
@@ -163,93 +202,102 @@ export default function App() {
             onClick={() => setActiveModule(GeoModule.METEO)} 
           />
           
-          <div className="mt-4 px-6 py-2">
-            <span className="text-[10px] uppercase tracking-widest text-[#444444] font-bold">Intelligence</span>
+          <div className="px-4 py-2">
+            <span className="text-[9px] uppercase tracking-widest text-[#444] font-bold">Cognitive Lab</span>
           </div>
           <SidebarItem 
             icon={Bot} 
-            label="Gemini Consultant" 
+            label="Master Geo-Synthesizer" 
             active={activeModule === GeoModule.AI_CONSULTANT} 
             onClick={() => setActiveModule(GeoModule.AI_CONSULTANT)} 
           />
+          <SidebarItem 
+            icon={Users} 
+            label="Simulation Sandbox" 
+            active={activeModule === GeoModule.SIMULATION} 
+            onClick={() => setActiveModule(GeoModule.SIMULATION)} 
+          />
         </nav>
 
-        <div className="p-4 border-t border-[#333333]">
-          <button className="w-full flex items-center justify-between p-2 rounded hover:bg-white/5 text-[#888888] hover:text-white transition-all">
-            <div className="flex items-center gap-2">
-              <Settings size={16} />
-              <span className="text-xs">System Settings</span>
-            </div>
-            <ChevronRight size={14} />
-          </button>
+        {/* Embedded Radar Warning Scan Widget */}
+        <div className="p-3 border-t border-[#222] flex justify-center bg-black/40">
+          <RadarWidget />
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col relative overflow-hidden">
-        {/* Top Header */}
-        <header className="h-14 border-bottom border-[#333333] flex items-center justify-between px-8 bg-[#111111]/80 backdrop-blur-sm z-10">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2 text-xs text-[#888888] font-mono">
+      {/* Center workspace frame */}
+      <main className="flex-1 flex flex-col relative overflow-hidden bg-[#0A0A0B]">
+        {/* Top telemetry control bar */}
+        <header className="h-12 border-b border-[#333333] flex items-center justify-between px-6 bg-[#161617] shrink-0 z-10">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5 text-[10px] text-[#888888] font-mono font-semibold">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-              SYSTEM ONLINE // {new Date().toLocaleTimeString()}
+              CORE METRIC // {systemClock}
             </div>
-            <div className="h-4 w-px bg-[#333333]"></div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-xs text-[#888888]">
-                <Cpu size={14} />
-                <span>NVIDIA A100 // ACTIVE</span>
-              </div>
+            <div className="h-4 w-px bg-[#333]"></div>
+            <div className="flex items-center gap-2 text-[10px] text-[#888]">
+              <Cpu size={12} className="text-[#FF5722]" />
+              <span className="font-mono">NVIDIA A100 // ACTIVE SERVICE</span>
             </div>
           </div>
           
           <div className="flex items-center gap-4">
             <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#555555]" />
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#555]" />
               <input 
                 type="text" 
-                placeholder="Search raw data archive..." 
-                className="bg-black/40 border border-[#333333] rounded px-9 py-1.5 text-xs w-64 focus:outline-none focus:border-[#FF5722] transition-colors"
+                placeholder="Search raw data matrices..." 
+                className="bg-black/40 border border-[#333] rounded px-8 py-1 text-[10px] w-48 focus:outline-none focus:border-[#FF5722] transition-colors font-mono"
               />
             </div>
             <button 
               onClick={() => setIsUploaderOpen(true)}
-              className="flex items-center gap-2 bg-[#FF5722] text-black px-4 py-1.5 rounded text-xs font-bold hover:bg-[#ff7043] transition-colors uppercase tracking-tight"
+              className="flex items-center gap-1.5 bg-[#FF5722] text-black px-3 py-1 rounded text-[10px] font-bold hover:bg-[#ff7043] transition-colors uppercase tracking-tight cursor-pointer"
             >
-              <Upload size={14} />
-              Import Raw File
+              <Upload size={12} />
+              Import Geo File
             </button>
           </div>
         </header>
 
-        {/* Content Area */}
-        <section className="flex-1 overflow-y-auto p-8 bg-[#0a0a0a]">
+        {/* Module Render Container */}
+        <section className="flex-1 overflow-y-auto p-6 scrollbar-thin">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeModule}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.15 }}
+              className="h-full"
             >
-              <ModuleSelector module={activeModule} />
+              <ModuleSelector activeModule={activeModule} onDrillCoords={setDrillCoords} />
             </motion.div>
           </AnimatePresence>
         </section>
 
-        {/* System Logs / Footer */}
-        <footer className="h-8 border-t border-[#333333] bg-[#111111] px-4 flex items-center justify-between font-mono text-[10px] text-[#555555]">
+        {/* Core System Footer status */}
+        <footer className="h-6 border-t border-[#333333] bg-[#0E0E0F] px-4 flex items-center justify-between font-mono text-[9px] text-[#555555] shrink-0">
           <div className="flex items-center gap-4">
-            <span>MEM: 12.4GB / 32GB</span>
-            <span>GPU_TEMP: 42°C</span>
-            <span>API_LATENCY: 124ms</span>
+            <span>MEM: 14.8GB / 32GB</span>
+            <span>GPU_TEMP: 41.5°C</span>
+            <span>API_LATENCY: 110ms</span>
           </div>
-          <div className="flex items-center gap-4 italic italic">
-            <span>READY FOR MULTIMODAL INFERENCE</span>
+          <div className="flex items-center gap-2 italic">
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
+            <span>SWARM DEBATERS READY FOR INFERENCE</span>
           </div>
         </footer>
       </main>
 
+      {/* Right panel docked Swarm Debate Meeting Room */}
+      <SwarmRoom 
+        activeModule={activeModule} 
+        drillCoordinates={drillCoords} 
+        onClearCoordinates={() => setDrillCoords(null)} 
+      />
+
+      {/* Cloud Store Importer modal */}
       <FileUploader 
         isOpen={isUploaderOpen} 
         onClose={() => setIsUploaderOpen(false)} 
@@ -259,137 +307,122 @@ export default function App() {
   );
 }
 
-function ModuleSelector({ module }: { module: GeoModule }) {
-  switch (module) {
-    case GeoModule.DASHBOARD: return <DashboardModule />;
-    case GeoModule.SEISMIC: return <SeismicModule />;
-    case GeoModule.WELL_LOGGING: return <WellLoggingModule />;
-    case GeoModule.SPATIAL: return <SpatialModule />;
-    case GeoModule.AI_CONSULTANT: return <AIConsultantModule />;
-    default: return <ModuleNotImplemented title={module.toUpperCase()} format="various" />;
+function ModuleSelector({ activeModule, onDrillCoords }: { activeModule: GeoModule, onDrillCoords: (c: {x:number, y:number, z:number}) => void }) {
+  switch (activeModule) {
+    case GeoModule.DASHBOARD: 
+      return <DashboardModule />;
+    case GeoModule.SEISMIC: 
+      return <SeismicModule />;
+    case GeoModule.WELL_LOGGING: 
+      return <WellLoggingModule />;
+    case GeoModule.SPATIAL: 
+      return <SpatialModule onInteractCoords={onDrillCoords} />;
+    
+    // Activated Sensing Modules
+    case GeoModule.GRAVITY_MAG: 
+      return <GravityMagModule />;
+    case GeoModule.ELECTRICAL: 
+      return <ElectricalEMModule />;
+    case GeoModule.GPR: 
+      return <GPRModule />;
+    case GeoModule.GEOCHEM: 
+      return <GeochemModule />;
+    case GeoModule.METEO: 
+      return <MeteorologyModule />;
+      
+    // AI Cognitive Labs
+    case GeoModule.AI_CONSULTANT: 
+      return <MasterGeoSynthesizer />;
+    case GeoModule.SIMULATION: 
+      return <SimulationModule />;
+      
+    default: 
+      return <DashboardModule />;
   }
 }
 
-// --- Module Components ---
-
+// --- Dashboard Overview Component ---
 function DashboardModule() {
   return (
-    <div className="grid grid-cols-12 gap-6">
-      <div className="col-span-12">
-        <ModuleHeader title="Command Dashboard" subtitle="Real-time system status and data acquisition overview." />
-      </div>
+    <div className="space-y-6">
+      <ModuleHeader title="GEOAI PRO CENTRAL COMMAND" subtitle="Real-time multi-agent swarm digital twin modeling and processing." />
 
-      <div className="col-span-8 space-y-6">
-        <div className="geo-card grid grid-cols-3 gap-8">
-          <Stat name="Total Archives" value="1,284" trend="+12" icon={Database} />
-          <Stat name="AI Interpretations" value="452" trend="+5" icon={Bot} />
-          <Stat name="Processed Geodata" value="4.2 TB" trend="+0.4" icon={Layers} />
+      <div className="grid grid-cols-12 gap-6">
+        {/* Core numbers */}
+        <div className="col-span-12 grid grid-cols-4 gap-4">
+          <DashboardStat label="Total Processed Arrays" value="2,482" change="+14%" description="Active survey segments" />
+          <DashboardStat label="Swarm Concurrences" value="384" change="+22%" description="Inference agreements logged" />
+          <DashboardStat label="Cloud Storage Ingested" value="12.5 TB" change="+1.2TB" description="Synced data matrices" />
+          <DashboardStat label="Model Inversions Completed" value="82" change="+8" description="Denoised crosscuts" />
         </div>
 
-        <div className="geo-card min-h-[300px]">
-          <h3 className="text-xs uppercase font-bold tracking-widest text-[#888888] mb-6 flex items-center gap-2">
-            <Activity size={14} className="text-[#FF5722]" />
-            Active Processing Pipeline
-          </h3>
-          <div className="space-y-4">
-            <PipelineItem name="Seismic_Line_A24.sgy" status="Denoising" progress={65} />
-            <PipelineItem name="Well_Exploration_01.las" status="Curve Normalization" progress={82} />
-            <PipelineItem name="Borehole_Magnetic_Survey.dat" status="Analyzing" progress={21} />
+        {/* Pipeline overview */}
+        <div className="col-span-8 space-y-4">
+          <div className="p-5 bg-[#171718] border border-[#333] rounded-lg">
+            <h3 className="text-xs uppercase font-bold tracking-widest text-[#888] mb-4 flex items-center gap-2 font-mono">
+              <Activity size={14} className="text-[#FF5722]" />
+              ACTIVE GEOPHYSICAL PROCESSING CHANNELS
+            </h3>
+            <div className="space-y-3 font-mono">
+              <DashboardChannel name="MiroFish_Subsurface_A2.segy" step="3D Structural Horizon Picking" progress={82} latency="114ms" />
+              <DashboardChannel name="Borehole_Magnetic_Survey.dat" step="Residual Field Deconvolution" progress={45} latency="228ms" />
+              <DashboardChannel name="Coastal_Estuary_Schlumberger.ohm" step="Apparent Inversion Profiler" progress={100} latency="0ms" completed />
+            </div>
+          </div>
+        </div>
+
+        {/* Guidelines */}
+        <div className="col-span-4 space-y-4">
+          <div className="p-5 bg-gradient-to-br from-[#1C1C1E] to-[#251A15] border border-[#FF5722]/20 rounded-lg">
+            <h3 className="text-xs uppercase font-bold text-white mb-2 flex items-center gap-1.5 font-mono">
+              <Bot size={14} className="text-[#FF5722]" />
+              AI SWARM STRATEGY FOR THE DAY
+            </h3>
+            <p className="text-[11px] text-[#A0A0A5] leading-normal font-mono">
+              "Unified analysis recommends focusing on **Electrical & EM apparent surveys** in basin sectors. Check the 3D Spatial Digital Twin coordinates to simulate virtual boreholes."
+            </p>
+          </div>
+
+          <div className="p-5 bg-[#111] border border-[#222] rounded-lg text-[10px] font-mono leading-normal text-[#555] space-y-1">
+            <span className="font-bold uppercase text-white block mb-1">DATA FLOW OVERVIEW</span>
+            <div>1. Upload/Sync Geophysics core data in left sidebar.</div>
+            <div>2. Use the right-side **Swarm Intelligence Room** to coordinate analysis using Dr. Vance, Rostova, and Takahashi.</div>
+            <div>3. Press 'Generate Prospect Report' to extract logs.</div>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
 
-      <div className="col-span-4 space-y-6">
-        <div className="geo-card bg-gradient-to-br from-[#1A1A1A] to-[#251A15] border-[#FF5722]/30">
-          <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
-            <Bot size={16} className="text-[#FF5722]" />
-            Gemini Insight of the Day
-          </h3>
-          <p className="text-xs text-[#AAAAAA] leading-relaxed mb-4">
-            "Detected potential salt-dome structural anomalies in the North-West quadrant. Recommends running a high-pass filter on the latest .segy batch."
-          </p>
-          <button className="text-[10px] text-[#FF5722] font-bold uppercase hover:underline">View Full Analysis →</button>
-        </div>
+function DashboardStat({ label, value, change, description }: any) {
+  return (
+    <div className="bg-[#171718] border border-[#333] p-4 rounded-lg flex flex-col justify-between">
+      <span className="text-[9px] uppercase font-bold text-[#555] tracking-widest block font-mono">{label}</span>
+      <div className="flex justify-between items-baseline my-1">
+        <span className="text-xl font-bold font-mono text-white tracking-tight">{value}</span>
+        <span className="text-[9px] font-bold text-green-500 font-mono">{change}</span>
+      </div>
+      <span className="text-[10px] text-[#888] font-mono">{description}</span>
+    </div>
+  );
+}
 
-        <div className="geo-card">
-          <h3 className="text-xs uppercase font-bold tracking-widest text-[#888888] mb-4">Recent Alerts</h3>
-          <div className="space-y-3">
-            <AlertItem type="warning" message="High noise ratio in Well_02 sonic logs." />
-            <AlertItem type="success" message="Spatial sync with Cloud-B successful." />
-            <AlertItem type="error" message="Format mismatch in .dzx upload." />
+function DashboardChannel({ name, step, progress, latency, completed = false }: any) {
+  return (
+    <div className="p-3 bg-black/30 border border-[#222] rounded flex justify-between items-center">
+      <div className="space-y-1">
+        <div className="text-xs font-bold text-white">{name}</div>
+        <div className="text-[9px] text-[#FF5722]">{step}</div>
+      </div>
+      <div className="flex items-center gap-4 text-right">
+        <div className="space-y-1">
+          <div className={`text-[9px] uppercase font-bold font-mono ${completed ? 'text-green-500' : 'text-yellow-500 animate-pulse'}`}>
+            {completed ? 'COMPLETED' : `${progress}%`}
           </div>
+          <div className="text-[8px] text-[#555]">{latency}</div>
         </div>
       </div>
     </div>
   );
 }
-
-function Stat({ name, value, trend, icon: Icon }: any) {
-  return (
-    <div>
-      <div className="flex items-center gap-2 mb-2">
-        <div className="p-2 bg-[#222222] rounded border border-[#333333]">
-          <Icon size={16} className="text-[#FF5722]" />
-        </div>
-        <span className="text-[10px] uppercase font-bold text-[#555555] tracking-widest leading-none">{name}</span>
-      </div>
-      <div className="flex items-baseline gap-2">
-        <span className="text-2xl font-mono font-bold tracking-tighter">{value}</span>
-        <span className="text-[10px] text-green-500 font-bold">{trend}%</span>
-      </div>
-    </div>
-  );
-}
-
-function PipelineItem({ name, status, progress }: any) {
-  return (
-    <div className="p-4 bg-black/20 rounded border border-[#333333]">
-      <div className="flex justify-between items-center mb-2">
-        <div className="flex flex-col">
-          <span className="text-xs font-bold text-white mb-0.5">{name}</span>
-          <span className="text-[10px] uppercase text-[#FF5722] font-mono tracking-tighter">{status}</span>
-        </div>
-        <span className="text-xs font-mono text-[#888888]">{progress}%</span>
-      </div>
-      <div className="w-full bg-[#222222] h-1 rounded-full overflow-hidden">
-        <motion.div 
-          initial={{ width: 0 }}
-          animate={{ width: `${progress}%` }}
-          className="h-full bg-[#FF5722]" 
-        />
-      </div>
-    </div>
-  );
-}
-
-function AlertItem({ type, message }: any) {
-  const Icon = type === 'error' ? AlertCircle : (type === 'success' ? CheckCircle2 : AlertCircle);
-  const color = type === 'error' ? 'text-red-500' : (type === 'success' ? 'text-green-500' : 'text-yellow-500');
-  
-  return (
-    <div className="flex gap-3 items-start">
-      <Icon size={14} className={cn("mt-0.5", color)} />
-      <p className="text-[11px] text-[#888888] leading-tight">{message}</p>
-    </div>
-  );
-}
-
-function ModuleNotImplemented({ title, format }: any) {
-  return (
-    <div className="h-full flex flex-col items-center justify-center p-12 text-center">
-      <div className="w-20 h-20 rounded-full border-2 border-dashed border-[#333333] flex items-center justify-center mb-6">
-        <Database size={40} className="text-[#333333]" />
-      </div>
-      <h2 className="text-xl font-bold mb-2 uppercase tracking-wide">{title}</h2>
-      <p className="text-sm text-[#888888] max-w-md mb-8 italic">
-        Module for processing {format} data is currently initializing. 
-        Advanced batch processing and 3D rendering engines are coming online.
-      </p>
-      <button className="bg-[#222222] border border-[#333333] px-6 py-2 rounded text-xs font-bold hover:bg-[#333333] transition-all">
-        Request Early Access
-      </button>
-    </div>
-  );
-}
-
-// Removed placeholder components that were conflicting with imports

@@ -1,146 +1,179 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { GoogleGenAI } from "@google/genai";
-import { Bot, Send, Zap, Trash2, Cpu, Sparkles } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import ReactMarkdown from 'react-markdown';
-import { cn } from '../../lib/utils';
+import React, { useState } from 'react';
+import { Bot, Users, Sparkles, Shield, Cpu, Play, CheckCircle2, Globe2, Activity } from 'lucide-react';
+import { useGlobalGeoContext } from '../../context/GlobalGeoContext';
 
-export default function AIConsultantModule() {
-  const [messages, setMessages] = useState<{role: 'user' | 'assistant', content: string}[]>([
-    { role: 'assistant', content: "Systems initialized. I am your Gemini-powered Geophysical Intelligence Agent. Upload any raw data (.segy, .las, .mseed) or ask me to perform automated denoising analysis on your current batch." }
-  ]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+export default function MasterGeoSynthesizer() {
+  const [activeTab, setActiveTab] = useState<'roster' | 'parameters' | 'context'>('roster');
+  const { rawPayloads } = useGlobalGeoContext();
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  const specialists = [
+    {
+      name: "Dr. Marcus Vance",
+      avatar: "GV",
+      role: "Senior Geophysicist",
+      model: "Inversion Engine // gemini-2.5-flash",
+      personality: "Precise, mathematical, focused entirely on anomaly values, RMS residuals, and noise filtration waveforms.",
+      focus: "Seismic wiggles interpolation, magnetic dipoles inversion, ground radar hyperbola envelope fitting."
+    },
+    {
+      name: "Dr. Elena Rostova",
+      avatar: "GR",
+      role: "Senior Structural Geologist",
+      model: "Stratigraphy Core // gemini-2.5-flash",
+      personality: "Mineral-focused, qualitative, relies on stratigraphic layers, synclines, and bedrock sedimentary matrices.",
+      focus: "Horizon picking validation, geochemical ternary sandstone profiling, core mineral analysis."
+    },
+    {
+      name: "Mr. Kenji Takahashi",
+      avatar: "KT",
+      role: "Lead Resource Economist",
+      model: "Financial Model // gemini-2.5-flash",
+      personality: "Practical, statistical, risk-avoiding, focused entirely on drilling profitability, environmental costs, and ROI matrices.",
+      focus: "Exploration return margins, operating cost models, drilling safety hazard assessments."
     }
-  }, [messages]);
-
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
-
-    const userMsg = input.trim();
-    setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
-    setLoading(true);
-
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: userMsg,
-        config: {
-          systemInstruction: `You are an elite Geophysics AI Assistant specialized in processing raw data formats like SEGY, LAS, and Microseismic. 
-          You provide advice on denoising, automatic horizon picking, well-log normalization, and spatial interpolation. 
-          Keep your tone professional, technical, and precise. Use markdown for formulas and code snippets.`,
-        }
-      });
-
-      const aiText = response.text || "I'm having trouble connecting to the inference engine. Please check your data pipe.";
-      setMessages(prev => [...prev, { role: 'assistant', content: aiText }]);
-    } catch (error) {
-      setMessages(prev => [...prev, { role: 'assistant', content: "Error: AI Inference Link Severed. Please check your API credentials." }]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  ];
 
   return (
-    <div className="h-[calc(100vh-12rem)] flex flex-col bg-[#1A1A1A] border border-[#333333] rounded-lg overflow-hidden">
-      <div className="p-4 border-b border-[#333333] bg-[#222222] flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#FF5722] rounded flex items-center justify-center">
-            <Bot size={18} className="text-black" />
-          </div>
-          <div>
-            <h2 className="text-sm font-bold uppercase tracking-tight">Gemini Intelligence Agent</h2>
-            <p className="text-[10px] text-[#888888] font-mono uppercase">LLM-GEOPHYSICS-V3 // ACTIVE</p>
-          </div>
+    <div className="space-y-6">
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-xl font-bold uppercase italic font-mono text-white flex items-center gap-3">
+            <Globe2 className="text-[#FF5722]" />
+            Master Geo-Synthesizer Core
+          </h1>
+          <p className="text-xs text-[#888888] font-mono mt-1 uppercase">Global Context Manager & Swarm Persona Cognitive Routing Parameters</p>
         </div>
-        <div className="flex items-center gap-4 text-[10px] text-[#555555] font-mono">
-          <div className="flex items-center gap-1">
-            <Cpu size={12} />
-            <span>GEMINI-3-FLASH</span>
-          </div>
-          <div className="w-px h-3 bg-[#333333]"></div>
-          <span>TOKEN_USAGE: OPTIMIZED</span>
+        <div className="flex items-center gap-2 text-xs bg-black/40 border border-[#33] px-3 py-1.5 rounded text-[#888] font-mono">
+          <Cpu className="text-green-500 animate-pulse" size={14} />
+          <span>SWARM_LINK: ACTIVE (3 NODES)</span>
         </div>
       </div>
 
-      <div 
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-[#333333]"
-      >
-        <AnimatePresence initial={false}>
-          {messages.map((msg, i) => (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              key={i}
-              className={cn(
-                "flex flex-col max-w-[85%]",
-                msg.role === 'user' ? "ml-auto items-end" : "items-start"
-              )}
-            >
-              <div className={cn(
-                "p-4 rounded-lg text-sm leading-relaxed",
-                msg.role === 'user' 
-                  ? "bg-[#FF5722] text-black font-medium" 
-                  : "bg-black/40 border border-[#333333] text-[#AAAAAA] markdown-body"
-              )}>
-                {msg.role === 'assistant' ? (
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
-                ) : (
-                  msg.content
+      <div className="grid grid-cols-12 gap-6">
+        <div className="col-span-8 space-y-4">
+          <div className="geo-card">
+            <div className="flex justify-between items-center mb-6 border-b border-[#222] pb-3">
+              <span className="text-xs font-mono font-extrabold uppercase tracking-widest text-[#888] flex items-center gap-1.5">
+                <Users size={14} className="text-[#FF5722]" />
+                ACTIVE SPECIALIST DEBATERS ROSTER
+              </span>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setActiveTab('roster')}
+                  className={`px-3 py-1 text-[10px] font-mono rounded ${activeTab === 'roster' ? 'bg-[#FF5722] text-black font-bold' : 'bg-white/5 text-[#888]'}`}
+                >
+                  Roster Profiles
+                </button>
+                <button 
+                  onClick={() => setActiveTab('parameters')}
+                  className={`px-3 py-1 text-[10px] font-mono rounded ${activeTab === 'parameters' ? 'bg-[#FF5722] text-black font-bold' : 'bg-white/5 text-[#888]'}`}
+                >
+                  System Instructions
+                </button>
+                <button 
+                  onClick={() => setActiveTab('context')}
+                  className={`px-3 py-1 text-[10px] font-mono rounded border border-[#FF5722]/30 flex items-center gap-1 ${activeTab === 'context' ? 'bg-[#FF5722] text-black font-bold' : 'bg-black text-[#FF5722]'}`}
+                >
+                  <Activity size={10} />
+                  Global Context
+                </button>
+              </div>
+            </div>
+
+            {activeTab === 'roster' && (
+              <div className="space-y-4">
+                {specialists.map((sp) => (
+                  <div key={sp.name} className="p-4 bg-black/40 border border-[#222] rounded-lg relative overflow-hidden flex gap-4">
+                    <div className="w-10 h-10 rounded-full bg-[#111] border border-[#FF5722]/30 flex items-center justify-center text-[#FF5722] font-mono font-black text-sm shrink-0">
+                      {sp.avatar}
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-white">{sp.name}</span>
+                        <span className="bg-[#FF5722]/10 border border-[#FF5722]/25 px-2 py-0.5 rounded text-[8.5px] font-mono text-[#FF5722] uppercase font-bold">{sp.role}</span>
+                      </div>
+                      <p className="text-xs text-[#888888] font-mono">{sp.personality}</p>
+                      <div className="text-[10px] text-[#555] font-mono flex items-center gap-1.5 pt-1">
+                        <Sparkles size={11} className="text-orange-400" />
+                        Focus Area: {sp.focus}
+                      </div>
+                    </div>
+                    <div className="absolute right-3 top-3 text-[8.5px] font-mono text-[#444]">{sp.model}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {activeTab === 'parameters' && (
+              <div className="space-y-4 font-mono text-[11px] leading-relaxed text-[#888] p-2">
+                <div className="p-4 bg-black/40 border border-[#222] rounded-lg">
+                  <span className="font-bold text-white block mb-2 uppercase text-xs">Dr. Marcus Vance (Geophysics Engine)</span>
+                  <pre className="whitespace-pre-wrap text-[10px] bg-black/80 p-3 rounded text-[#aaa] border border-[#111]">
+                    {`System instruction: You are acting as Dr. Marcus Vance, a rigorous Senior Geophysicist. 
+Analyze all inputs specifically for acoustic wiggles, RMS residual noise levels, dipoles inversions, 
+and hyperbola reflectors. Keep replies brief, fully technical, and highly precise.`}
+                  </pre>
+                </div>
+
+                <div className="p-4 bg-black/40 border border-[#222] rounded-lg">
+                  <span className="font-bold text-white block mb-2 uppercase text-xs">Dr. Elena Rostova (Stratigraphy Core)</span>
+                  <pre className="whitespace-pre-wrap text-[10px] bg-black/80 p-3 rounded text-[#aaa] border border-[#111]">
+                    {`System instruction: You are Dr. Elena Rostova, an elite Structural Geologist.
+Correlate geophysics anomalies directly back with stratigraphic rock horizons, syncline formations, 
+and sand/sandy-clay core parameters. Focus on mineral classifications.`}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'context' && (
+              <div className="space-y-4 font-mono text-[11px] leading-relaxed text-[#888] p-2">
+                <p className="text-xs">
+                  The Master Consultant reads data across all modules simultaneously to generate synthesized insights (e.g., cross-referencing gravity high anomalies with electrical low-resistivity anomalies to flag sulphide deposits).
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  {Object.entries(rawPayloads).map(([key, value]) => {
+                    if (!value) return null;
+                    return (
+                      <div key={key} className="p-3 bg-black/40 border border-[#FF5722]/30 rounded-lg">
+                        <span className="font-bold text-[#FF5722] block mb-2 uppercase text-[10px]">{key} <span className="text-[#888]">({value.length} chars)</span></span>
+                        <div className="h-20 overflow-y-auto text-[9px] text-[#777] bg-black p-2 border border-[#222] rounded">
+                          {value}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {Object.values(rawPayloads).every(v => !v) && (
+                  <div className="p-4 border border-dashed border-[#444] rounded text-center text-gray-500">
+                    No global module data ingested yet. Paste raw data into any module to populate the Swarm Context.
+                  </div>
                 )}
               </div>
-              <span className="text-[9px] text-[#444444] font-mono mt-1 uppercase">
-                {msg.role === 'assistant' ? 'Intelligence Agent' : 'Geophysicist'} // {new Date().toLocaleTimeString()}
-              </span>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-        {loading && (
-          <div className="flex items-center gap-2 text-[#FF5722] text-[10px] font-mono">
-            <Zap size={12} className="animate-pulse" />
-            INFERRING DATA...
+            )}
           </div>
-        )}
-      </div>
-
-      <div className="p-4 border-t border-[#333333] bg-[#222222]">
-        <div className="flex gap-2">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Ask about denoising algorithms or interpretation support..."
-            className="flex-1 bg-black/40 border border-[#444444] rounded px-4 py-2 text-sm focus:outline-none focus:border-[#FF5722] transition-colors"
-          />
-          <button 
-            onClick={handleSend}
-            disabled={loading}
-            className="bg-[#FF5722] text-black px-4 py-2 rounded font-bold transition-all hover:bg-[#ff7043] disabled:opacity-50"
-          >
-            <Send size={18} />
-          </button>
         </div>
-        <div className="mt-3 flex items-center gap-4">
-          <button className="flex items-center gap-1.5 text-[10px] text-[#888888] hover:text-[#FF5722] transition-colors uppercase font-bold">
-            <Sparkles size={12} />
-            Suggest Denoising
-          </button>
-          <button className="flex items-center gap-1.5 text-[10px] text-[#888888] hover:text-[#FF5722] transition-colors uppercase font-bold">
-            <Activity size={12} />
-            Scan Anomalies
-          </button>
+
+        {/* Cognitive coordination guidelines */}
+        <div className="col-span-4 space-y-4">
+          <div className="geo-card block">
+            <h3 className="text-xs uppercase font-mono font-bold tracking-widest text-[#888] mb-4">DYNAMIC COORDINATION</h3>
+            <div className="space-y-3 text-xs leading-normal">
+              <p className="text-[#888]">
+                Master Geo-Synthesizer handles automated orchestration of global inquiries. It evaluates the combined data of all active modules via GlobalGeoContext.
+              </p>
+              <div className="p-3 bg-white/5 border border-[#333] rounded text-[10px] font-mono text-[#aaa]">
+                <span className="font-bold text-[#FF5722] block mb-1">GLOBAL SYNTHESIS INJECTION:</span>
+                Raw arrays from Electrical, Gravity, and Spatial modules are injected into Swarm memory automatically.
+              </div>
+              <div className="flex items-center gap-2 text-xs text-green-500 font-mono">
+                <CheckCircle2 size={13} />
+                <span>Context Inverted: Global Multi-discipline</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
-const Activity = ({ size, className }: any) => <Zap size={size} className={className} />;
