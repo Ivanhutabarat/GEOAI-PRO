@@ -1,86 +1,211 @@
-# GeoAI Pro: Geophysics Intelligence Suite
-
-**SYSTEM STATUS:** `OPERATIONAL`
-**TELEMETRY:** `STABLE`
-**VERSION:** `v4.0.0`
+# 🌌 GeoAI Pro v4.0: Geophysical Twin & Swarm Intelligence Suite
 
 ---
 
-## 1. Executive Summary
+<div align="center">
 
-**GeoAI Pro** is an enterprise-grade, end-to-end Geophysics Intelligence Suite designed for advanced subsurface modeling, high-fidelity economic simulation, and rigorous stakeholder consensus. Engineered for the modern exploration and civil engineering sectors, GeoAI Pro completely revolutionizes how geophysical data is ingested, visualized, and acted upon.
+  ![Version](https://img.shields.io/badge/Version-v4.0.0--Digital--Twin-FF5722?style=for-the-badge&logo=git)
+  ![Architect](https://img.shields.io/badge/Architect-Ivan%20Hutabarat%20(Eugene)-00E5FF?style=for-the-badge&logo=keycdn)
+  ![Security](https://img.shields.io/badge/Security-SHA--256%20Heartbeat--Lock-brightgreen?style=for-the-badge&logo=shield)
+  ![Status](https://img.shields.io/badge/Status-Operational%20Workstation-emerald?style=for-the-badge)
 
-At the heart of the platform is a sophisticated **multi-agent Swarm Intelligence** architecture. This distributed cognitive engine processes incoming raw field sensor data and synthesizes real-time decisions, simulating complex macro-economic and geotechnical scenarios before a single physical drill penetrates terrestrial strata.
+</div>
 
 ---
 
-## 2. System Architecture & Core Modules
+## ⚡ 1. Executive Summary & Purpose
 
-The suite dynamically ingests unstructured and structured data across eight distinct diagnostic disciplines, fusing them into a unified Global GeoData Context.
+**GeoAI Pro v4.0** is an elite, high-precision **Geophysical Digital Twin Workstation** engineered for advanced multi-layer exploration, seismic reflection modeling, high-density reservoir simulations, and autonomous multi-agent stakeholder consensus. Built using a custom full-stack React-Vite & Express topology, the workstation models real-time subsurface parameters to resolve complex geotechnical and macroeconomic challenges prior to physical ground validation.
 
-1. **Seismic (.segy)** - Acoustic wavelet analysis, bright spot detection (hydrocarbon/gas indicators), fault line tracing, and structural hazard identification.
-2. **Well Logging (.las)** - Advanced telemetry including sonic transit times, deep induction resistivity, and rock porosity metrics.
-3. **Spatial Twin (.shp)** - A 3D Spatial Digital Twin mapping absolute virtual drilling coordinates and live slice-plane volumetric models.
-4. **Gravity & Magnetic** - Identification of basement rock structures, salt domes, and regional density anomalies via gradiometry mapping.
-5. **Electrical & EM (.ohm)** - Mapping Schlumberger Vertical Electrical Sounding (VES) resistivity values and bedrock pseudo-sections.
-6. **GPR Waveform (.dzx)** - Near-surface high-resolution hyperbola wavelet analysis and concrete bedrock integrity mapping.
-7. **Rock Geochem (.csv)** - Evaluation of QFL ternary mineral abundances and quantification of rare earth element deposits.
-8. **Meteorology** - Atmospheric and weather integration monitoring storm velocities, hydrological impacts, and seismology offsets.
+At the core of the suite is a unified **Global GeoData Context** coupled with a distributed **Swarm Intelligence Engine**. This engine maps eight geophysical diagnostic disciplines, executes high-speed neural consensus negotiations among 14 autonomous domain experts, and guarantees continuous runtime uptime via its self-healing Multi-Key API Failover Routing layer.
 
-```mermaid
-graph TD
-    A[Field Sensors & Logs] --> B(Ingestion Port)
-    B --> C1[Seismic]
-    B --> C2[Well Logging]
-    B --> C3[Gravity/Mag]
-    B --> C4[Electrical/EM]
-    C1 --> D{Global GeoDataStore}
-    C2 --> D
-    C3 --> D
-    C4 --> D
-    D --> E((SWARM COGNITIVE ROOM))
-    E --> F[Decision Synthesis]
-    E --> G[3D Spatial Twin]
+---
+
+## 🧠 2. Deep System Architecture
+
+GeoAI Pro organizes its codebase into highly modular subsystems, ensuring maximum type safety, extreme visual density, and absolute integrity control.
+
+```
+.
+├── .env.example                            # Schema template for environmental parameters
+├── .gitignore                              # Visual compile and binary asset excluder
+├── README.md                               # Authoritative System & Core Module Manual
+├── package.json                            # Package dependencies and standard execution scripts
+├── package-lock.json                       # Absolute package dependency tree lock
+├── tsconfig.json                           # TypeScript architecture compiler specifications
+├── vite.config.ts                          # Vite and Post-CSS bundler configurations
+├── index.html                              # Web App frame mount host
+├── server.ts                               # High-performance Express API cluster & Integrity host
+├── metadata.json                           # Applet capability descriptors & permissions
+├── config/
+│   └── .identity_lock                      # Binary/static SHA-256 license signature anchor
+├── public/                                 # Clean public media vectors and icon assets
+└── src/
+    ├── App.tsx                             # Master workspace UI routing & integrity layout
+    ├── main.tsx                            # React 18 bootstrap & static preboot validator
+    ├── index.css                           # Global Tailwind framework imports & custom scrollbars
+    ├── types.ts                            # Universal type registry for GeoAI data and logs
+    ├── vite-env.d.ts                       # Vite environment ambient type declarations
+    ├── api/
+    │   └── webhook/                        # Extensible telemetry pipeline gateways
+    ├── components/
+    │   ├── Modules/                        # High-density Interactive Core Modules
+    │   │   ├── AIConsultantModule.tsx      # Multi-Agent Debate interface & direct simulation shunts
+    │   │   ├── AnalyticsDrawer.tsx         # Comprehensive Analytical Slideout & PDF exporter
+    │   │   ├── BoreholeRadiometricModule.tsx # Gamma ray & neutron log density analyzer
+    │   │   ├── CentralCommand.tsx          # Real-time Telemetry, Command Tray, and ROI visuals
+    │   │   ├── ChartRenderer.tsx           # D3 / Recharts multi-layer subsurface canvas
+    │   │   ├── ElectricalEMModule.tsx      # Bedrock EM sounding & Schlumberger pseudo-sections
+    │   │   ├── GPRModule.tsx               # Near-surface high-resolution hyperbola radar
+    │   │   ├── GasAirQualityModule.tsx     # Environmental borehole gas monitoring array
+    │   │   ├── GeochemModule.tsx           # Ternary mineral charts & rare earth element metrics
+    │   │   ├── GeotechnicalTiltExtenso.tsx # Structural fault-line strain gauge sensors
+    │   │   ├── GravityMagModule.tsx        # Basement rock & salt dome gravity gradiometry 
+    │   │   ├── GroundwaterModule.tsx       # Aquifer flow hydraulics & fluid saturation telemetry
+    │   │   ├── MeteorologyModule.tsx       # Local environmental weather offsets & seismology correlation
+    │   │   ├── SeismicModule.tsx           # Reflective wave acoustic tracing (.segy style)
+    │   │   ├── SimulationModule.tsx        # Monte Carlo drill planning & risk matrix graphs
+    │   │   ├── SoilPHModule.tsx            # Agricultural bedrock acidity & chemical profile analyzer
+    │   │   ├── SpatialControlPanel.tsx     # Three.js camera & slice-plane coordinate selectors
+    │   │   ├── SpatialModule.tsx           # Volumetric 3D lithography control panel
+    │   │   ├── SpatialTwin.tsx             # Interactive React Three Fiber depth-bound voxel visualizer
+    │   │   ├── SystemDiagnostics.tsx       # API health registers & key rotation monitor status
+    │   │   └── WellLoggingModule.tsx       # LAS telemetry parsing (sonic speed, induction resistance)
+    │   └── Shared/                         # Modular shared workstation components
+    │       ├── ApiHealthMonitor.tsx        # Key latency tracking & failover logs console
+    │       ├── ErrorBoundary.tsx           # Dynamic runtime error fallback shield
+    │       ├── FileUploader.tsx            # Drag-and-drop unified log data parser
+    │       ├── RadarWidget.tsx             # Radial scanning grid layout
+    │       ├── SeismicRadar.tsx            # Structural fault frequency monitor
+    │       ├── SwarmRoom.tsx               # Real-time Swarm Debate viewport & live ticker
+    │       └── UniversalIngestionPort.tsx  # Ingestion channel diagnostic overview
+    ├── config/
+    │   └── apiConfig.ts                    # Multi-key failover and credentials mapping logs
+    ├── context/
+    │   └── GlobalGeoContext.tsx            # Ground-truth global context provider for logs & telemetry
+    ├── hooks/
+    │   └── useApiQueue.ts                  # Priority-level request manager and 429 limiter
+    ├── lib/
+    │   ├── AgentCatalog.ts                 # Full 14-expert cognitive roster setup
+    │   ├── GlobalKnowledgeRepository.ts    # Volumetric match memory recall array
+    │   ├── SwarmEngine.ts                  # Cognitive boardroom debate engine & deadlock solver
+    │   ├── identityValidator.ts            # Front-end SHA-256 license checksum calculator
+    │   └── utils.ts                        # Tailwind class mergers & micro-formatting utilities
+    └── store/
+        ├── ApiMonitorStore.ts              # Global store monitoring API failover sequences
+        ├── GeoDataStore.ts                 # Local storage caching spatial drill parameters
+        ├── OptimizerStore.ts               # Core database state tracking optimized drilling findings
+        └── PerformanceStore.ts             # Memory & GPU monitoring simulation registers
 ```
 
 ---
 
-## 3. The "Swarm Cognitive Room"
+## 🏛️ 3. Core Software Modules
 
-The **Swarm Cognitive Room** serves as the autonomous computational brain of GeoAI Pro. Rather than relying on a single deterministic algorithm or single LLM prompt, the engine orchestrates a massive multi-agent boardroom debate involving **14 active domain specialists**.
+### 🧠 A. Swarm Debate Consensus Engine (`SwarmEngine` & `AgentCatalog`)
+Unlike traditional single-variable AI models, GeoAI Pro utilizes a **multi-agent logical courtroom**. 
+* **Specialist Classrooms:** 14 distinct diagnostic experts representation from three main factions (`💼 CORPORATE & CAPITAL`, `🔬 ACADEMIC & RESEARCH`, `🌱 COALITION & watchdog`).
+* **Phase-Aware Resolution:** Standard runs start in *Phase 1 (Structured Exploration)*, transition to *Phase 2 (Consensus Resolution)*, and fallback to *Phase 3 (Executive Override)* via an integrated `DeadlockResolver` if convergence exceeds 3 rounds.
+* **Deterministic Risk-Stance**: Adapts individual agent bias dynamically based on the input location's risk metrics, guaranteeing hyper-realistic corporate friction simulation.
 
-**The Specialist Roster:**
-Dr. Vance, Tanya Rostova, Kenji Takahashi, Sarah Lin, Michael Chen, Alex Rahman, Cpt. Declan Hayes, Sven Olsen, Audi Santosa, Andi Wijaya, Tariq Al-Hashimi, Eleanor Vance, Lars Mikkelsen, Chloe Mendes.
+### 💾 B. Global Knowledge memory Repository (`GlobalKnowledgeRepository`)
+Provides a local physical vector database.
+* **Parameters Vectorization:** Subsurface values (Acoustic Impedance, Deep Induction, Gas concentration, Density) are indexed.
+* **Spatial Similary Match:** Instantly query existing models and recall high-affinity past optimizations using a multi-dimensional Euclidean proximity formula (minimum 90% matching threshold).
+* **Base64 Snapshots**: Automatically stores and recalls base64-encoded visual diagrams of geological slices for instantaneous, latency-free rendering.
 
-**Simulation Parameters:**
-Whenever drilling coordinates are nominated or raw data is parsed, the Swarm Engine engages in high-speed, multi-perspective debates. The agents forcefully negotiate over:
-*   **Technical Geophysical Inversion:** Reconciling anomalous sub-surface sensor readings.
-*   **Macro-Economy & Supply Chain:** Logistics tracking, state-owned enterprise (SOE) compliance, and multi-billion-dollar contractor estimations.
-*   **Social & Watchdog Dynamics:** Evaluating environmental risk, civil consent, NGO optics, and regulatory compliance.
-
----
-
-## 4. Technical Specifications
-
-GeoAI Pro is built on a resilient, high-performance web architecture designed for uninterrupted mission-critical deployment.
-
-*   **Backend:** Node.js / TypeScript Engine utilizing Express for API routing and complex middleware validation.
-*   **Frontend:** React 18 with Tailwind CSS for high-density industrial interfaces.
-*   **3D Engine:** Three.js / React Three Fiber for the *Spatial Twin*, executing live shaders and volumetric depth-clipping.
-*   **State Management:** Zustand (`GeoDataStore`) for low-latency, cross-module data synchronization.
-*   **Intelligence:** Multi-agent Swarm Consensus via GenAI (Google Gemini), utilizing structured JSON schema output for machine-readable logic parsing.
-*   **API Strategy & Telemetry:** 
-    *   **Global Failover Service:** An automated, self-healing API queue manager with dynamic multi-key rotation.
-    *   Designed to intercept `429 Rate Limit` and `503 Service Unavailable` signals, intelligently cycling keys to guarantee **zero-downtime persistence** and continuous swarm processing.
+### 🛡️ C. Hardware License Heartbeat & Integrity Layer (`identityValidator`)
+A rigorous license validation sequence running across client and server environments:
+* **Binary Hash Anchor:** The file `/config/.identity_lock` acts as the physical hardware license key.
+* **Static Verification Routine:** Prior to React bootstrapping, `prebootIntegrityCheck()` queries the backend `/api/integrity-check` endpoint while validating the signature `Ivan Hutabarat (Eugene)` using an isolated pure TypeScript implementation of the SHA-256 algorithm.
+* **Integrity Shield:** Any modification to the signature or checksum parameter results in immediate shutdown, freezing the workspace and printing a high-impact `FATAL_INTEGRITY_EXCEPTION` safety panel.
 
 ---
 
-## 5. Core Features
+## 📊 4. The Interactive Geophysical Workstation (Control Suite)
 
-*   **Real-time 3D Geological Modelling:** Fully interactive volumetric rendering of sub-surface lithography, complete with Z-axis depth slicing and data-point overlays.
-*   **Dynamic API Failover Engine:** Unbreakable AI connectivity. The system intelligently monitors network telemetry and automatically hot-swaps generation keys if provider interference is detected.
-*   **Stakeholder Consensus Simulator:** Emulate real-world bureaucratic, financial, and geotechnical friction through autonomous multi-agent debates.
-*   **Unified Field-Data Ingestion & Synthesis:** Drag-and-drop parsing for disparate field file formats, instantly standardizing data into the global context vector.
+The **Central Command console** features an intuitive, highly optimized contextual deck to drive mission-critical borehole parameters:
+
+```
++--------------------------------------------------------------+
+| CENTRAL COMMAND TELEMETRY PANEL                              |
+| [Active Drilling ROI Scan]        [Interactive Settings Desk]|
+| +----------------------------+    +-------------------------+|
+| | /---\   /\   /---\  /\-/\  |    | (*) Add ROI Chart  ( ON)| |
+| | \---/   \/   \---/  \/ \/  |    | ( ) Animate Logs   (OFF)| |
+| | bore depth: 3,450 meters   |    | ( ) Highlight Drift(OFF)| |
+| +----------------------------+    +-------------------------+|
++--------------------------------------------------------------+
+```
+
+### 📈 I. Floating Settings Desk
+To optimize screen space, geological and visual controls are consolidated inside a contextual **Settings Desk** toolbar. Hovering over this sleek, glassmorphic panel near the **DYNAMIC SPECTRAL CALIBRATOR** expands an intricate control hub for immediate operational modifications:
+* **✦ Add Drill ROI Chart:** Materializes a high-contrast regional vector diagram illustrating borehole density gradients.
+* **✦ Animate Optimizing Logs:** Toggles an intense, high-fidelity real-time stream showcasing simulated algorithmic convergence routes mapped to deep strata layers.
+* **✦ Highlight Parameter Drift:** Arms high-contrast visual indicators highlighting dangerous soil resistivity variations.
+* **✦ Export Confirmation Panel:** Activates state protection to prevent accidental download Triggers on mission reports.
+
+### 🎚️ II. Aesthetic and Spatial Alignment
+* **Industrial Color Cues:** Electric Orange (`#FF5722`) identifies active hardware processes, Ice-Cyan (`#00E5FF`) highlights diagnostic networks, and Slate gray manages inactive sensors.
+* **Cohesive Micro-Gradients:** Active modules feature a 1px border styled with a faint glowing aura to represent real physical workstation terminals.
+* **Generous Workspace Density:** Implements a strict 16px gutter between system operations logs and modular diagnostic readouts, preventing information clutter while preserving maximum readability.
 
 ---
-*Developed for unparalleled geotechnical superiority.*
+
+## 📑 5. Report Exportation & Watermark Audit Policy
+
+Analytical reports generated via the **Central Command Panel** or the **Analytical Slideout Drawer** compile a comprehensive analytical cover sheet detailing lithological parameters, regional density, and simulation logs.
+
+* ⚖️ **Watermark Policy:** Under the master directive of the Senior Architect, all analytical reports export with a permanent, high-contrast structural footer tag declaring:
+  
+  ```
+  Hasil ini dibuat oleh GEOAI by Ivan Hutabarat
+  ```
+  
+  This watermark is baked into the layout to ensure the legitimacy and compliance of deep exploration data across global structural and regulatory agencies.
+
+---
+
+## 🚀 6. Developer Workstation Boot Instructions
+
+### Prerequisites
+* **Node.js**: v18+
+* **Vite**: v4+
+
+### Step-by-Step Workspace Spin-Up
+
+1. **Install Dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Configure Environmental Variables:**
+   Rename `.env.example` to `.env` and assign authorized keys:
+   ```env
+   # .env
+   GEMINI_API_KEY=your_authorized_private_key
+   ```
+
+3. **Initialize Dev Server:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Verify Linter and Code Quality Rules:**
+   ```bash
+   npm run lint
+   ```
+
+5. **Compile Applet Bundle:**
+   ```bash
+   npm run build
+   ```
+
+---
+
+<div align="right">
+  
+  *Designed, coded, and architected by* **Ivan Hutabarat (Eugene)**.  
+  ***Secure licensing active. Zero-compromise workstation standard enabled.***
+
+</div>

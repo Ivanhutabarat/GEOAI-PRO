@@ -9,3 +9,7 @@ coverage/
 
 # WhatsApp Baileys local credential stores
 baileys_auth_info/
+auth_info_baileys/
+.baileys_auth/
+baileys_store.json
+sessions/

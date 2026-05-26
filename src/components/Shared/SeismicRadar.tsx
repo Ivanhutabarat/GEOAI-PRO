@@ -1,29 +1,24 @@
 // src/components/Shared/SeismicRadar.tsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Network } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 
 export default function SeismicRadar() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [dots, setDots] = useState<{ x: number; y: number; id: number; opacity: number }[]>([]);
   const radarAngle = useRef(0);
-
-  useEffect(() => {
-    // Generate initial static targets
-    const initialDots = Array.from({ length: 8 }).map((_, i) => ({
-      x: (Math.random() - 0.5) * 0.8, // Normalized -0.4 to 0.4
-      y: (Math.random() - 0.5) * 0.8,
-      id: i,
-      opacity: 0
-    }));
-    setDots(initialDots);
-  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+
+    // Generate initial static targets
+    const dots = Array.from({ length: 8 }).map((_, i) => ({
+      x: (Math.random() - 0.5) * 0.8, // Normalized -0.4 to 0.4
+      y: (Math.random() - 0.5) * 0.8,
+      id: i,
+      opacity: 0
+    }));
 
     let animationFrameId: number;
 
@@ -79,8 +74,8 @@ export default function SeismicRadar() {
       ctx.fillStyle = gradient;
       ctx.fill();
 
-      // Update dots opacity based on sweep collision
-      setDots(prev => prev.map(dot => {
+      // Update dots opacity based on sweep collision and draw directly
+      dots.forEach(dot => {
         const trueX = dot.x * maxRadius * 2;
         const trueY = dot.y * maxRadius * 2;
         const dotAngle = Math.atan2(trueY, trueX);
@@ -96,29 +91,23 @@ export default function SeismicRadar() {
         } else {
           op = Math.max(0, op - 0.015); // Fade
         }
-        return { ...dot, opacity: op };
-      }));
+        dot.opacity = op;
 
-      // Draw dots directly on canvas
-      setDots(prev => {
-        prev.forEach(dot => {
-          if (dot.opacity > 0) {
-            const dx = centerX + dot.x * maxRadius * 2;
-            const dy = centerY + dot.y * maxRadius * 2;
-            
-            ctx.beginPath();
-            ctx.arc(dx, dy, 3, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(57, 255, 20, ${dot.opacity})`;
-            ctx.fill();
-            
-            ctx.beginPath();
-            ctx.arc(dx, dy, 12, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(57, 255, 20, ${dot.opacity * 0.5})`;
-            ctx.lineWidth = 1;
-            ctx.stroke();
-          }
-        });
-        return prev;
+        if (op > 0) {
+          const dx = centerX + dot.x * maxRadius * 2;
+          const dy = centerY + dot.y * maxRadius * 2;
+          
+          ctx.beginPath();
+          ctx.arc(dx, dy, 3, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(57, 255, 20, ${op})`;
+          ctx.fill();
+          
+          ctx.beginPath();
+          ctx.arc(dx, dy, 12, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(57, 255, 20, ${op * 0.5})`;
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
       });
 
       animationFrameId = requestAnimationFrame(render);

@@ -65,7 +65,7 @@ export default function MasterGeoSynthesizer() {
   };
 
   const specialists = [
-    { name: "Dr. Marcus Vance", avatar: "GV", role: "Senior Geophysicist", model: "Inversion Engine // gemini-2.5-flash", personality: "Precise, mathematical.", focus: "Structural Anomalies" },
+    { name: "Dr. Marcus Vance", avatar: "GV", role: "Senior Geophysicist", model: "Inversion Engine // gemini-3.5-flash", personality: "Precise, mathematical.", focus: "Structural Anomalies" },
     { name: "Dr. Elena Rostova", avatar: "GR", role: "Structural Geologist", model: "Stratigraphy Core", personality: "Mineral-focused, qualitative.", focus: "Lithology" },
     { name: "Mr. Kenji Takahashi", avatar: "KT", role: "Resource Economist", model: "Financial Model", personality: "Statistical, risk-avoiding.", focus: "Drilling ROI" },
     { name: "Dr. Sarah Lin", avatar: "PT", role: "Petrophysicist", model: "Log Analyzer", personality: "Analytical, log-centric.", focus: "Porosity & Permeability" },

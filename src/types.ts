@@ -9,6 +9,11 @@ export enum GeoModule {
   GEOCHEM = 'geochem',
   GPR = 'gpr',
   METEO = 'meteo',
+  GROUNDWATER = 'groundwater',
+  SOIL_PH = 'soil-ph',
+  BOREHOLE_RADIOMETRIC = 'radiometric',
+  GEOTECHNICAL_TILT = 'tilt-extenso',
+  GAS_AIR_QUALITY = 'gas-air',
   AI_CONSULTANT = 'ai-consultant',
   SIMULATION = 'simulation',
   DIAGNOSTICS = 'diagnostics'

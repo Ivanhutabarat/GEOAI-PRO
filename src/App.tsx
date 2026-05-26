@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useEffect, Component, ReactNode } from 'react';
+import { validateIdentity } from './lib/identityValidator';
 
 console.log("App mounted successfully");
 
@@ -54,11 +55,16 @@ import {
   Upload, 
   LayoutDashboard,
   Search,
+  Sliders,
   Cpu,
   Unplug,
   Users,
   Terminal,
-  Loader2
+  Loader2,
+  Droplets,
+  TestTube,
+  Radio,
+  Mountain
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { HashRouter, Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
@@ -83,14 +89,22 @@ import ElectricalEMModule from './components/Modules/ElectricalEMModule';
 import GPRModule from './components/Modules/GPRModule';
 import GeochemModule from './components/Modules/GeochemModule';
 import MeteorologyModule from './components/Modules/MeteorologyModule';
+import GroundwaterModule from './components/Modules/GroundwaterModule';
+import SoilPHModule from './components/Modules/SoilPHModule';
+import BoreholeRadiometricModule from './components/Modules/BoreholeRadiometricModule';
+import GeotechnicalTiltExtensoModule from './components/Modules/GeotechnicalTiltExtensoModule';
+import GasAirQualityModule from './components/Modules/GasAirQualityModule';
 
 // Shared Components
 import SwarmRoom from './components/Shared/SwarmRoom';
 import SeismicRadar from './components/Shared/SeismicRadar';
 import FileUploader from './components/Shared/FileUploader';
+import ApiHealthMonitor from './components/Shared/ApiHealthMonitor';
+import AnalyticsDrawer from './components/Modules/AnalyticsDrawer';
 
 // Hooks
 import { useApiQueue } from './hooks/useApiQueue';
+import { useApiMonitorStore } from './store/ApiMonitorStore';
 
 // --- Components ---
 const SidebarItem = ({ 
@@ -132,8 +146,20 @@ function AppContent() {
   const location = useLocation();
   const activeModulePath = location.pathname === '/' ? GeoModule.DASHBOARD : location.pathname.slice(1) as GeoModule;
 
+  const [isCompromised, setIsCompromised] = useState(false);
+
+  useEffect(() => {
+    try {
+      validateIdentity();
+    } catch (err) {
+      console.error("[Integrity Error] failed validation check:", err);
+      setIsCompromised(true);
+    }
+  }, []);
+
   const [files, setFiles] = useState<GeoFile[]>([]);
   const [isUploaderOpen, setIsUploaderOpen] = useState(false);
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [drillCoords, setDrillCoords] = useState<{ x: number; y: number; z: number } | null>(null);
 
   const [systemClock, setSystemClock] = useState("");
@@ -146,6 +172,7 @@ function AppContent() {
   }, []);
 
   const { isProcessing, statusMessage, queueLength } = useApiQueue();
+  const { apiMode, toggleApiMode } = useApiMonitorStore();
 
   const handleUpload = (newFiles: File[]) => {
     const geoFiles: GeoFile[] = newFiles.map(f => ({
@@ -168,6 +195,21 @@ function AppContent() {
     return GeoModule.DASHBOARD;
   };
 
+  if (isCompromised) {
+    return (
+      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center text-red-500 font-mono z-[99999] p-8 select-none">
+        <div className="max-w-md text-center space-y-4">
+          <span className="text-5xl animate-pulse">☠</span>
+          <h1 className="text-lg font-bold uppercase tracking-widest border-b border-red-900 pb-2">CRITICAL EXCEPTION</h1>
+          <p className="text-sm text-gray-400 font-bold leading-relaxed">
+            System Integrity Compromised. Unauthorized modification detected.
+          </p>
+          <span className="text-[10px] text-gray-600 block pt-1 font-semibold">ERROR_CODE: FATAL_INTEGRITY_EXCEPTION</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-[#111111] text-white overflow-hidden font-sans">
       {/* Sidebar navigation */}
@@ -179,7 +221,11 @@ function AppContent() {
             </div>
             <span className="text-md font-bold tracking-tighter uppercase italic">GeoAI Pro</span>
           </div>
-          <p className="text-[9px] text-[#FF5722] font-mono leading-none font-bold uppercase tracking-widest">Digital Twin v4.0</p>
+          <p className="text-[9px] text-[#FF5722] font-mono leading-none font-bold uppercase tracking-widest mb-2">Digital Twin v4.0</p>
+          <div className="text-[8px] font-mono text-[#777] uppercase leading-tight select-none border-t border-[#222] pt-2">
+            🔒 License Lock:
+            <span className="text-[#0E5FF] text-[#00E5FF] block mt-0.5 font-bold">Ivan Hutabarat (Eugene)</span>
+          </div>
         </div>
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto font-mono scrollbar-thin">
@@ -201,7 +247,16 @@ function AppContent() {
           <SidebarItem icon={Thermometer} label="Rock Geochem" to={`/${GeoModule.GEOCHEM}`} />
           <SidebarItem icon={Wind} label="Meteorology" to={`/${GeoModule.METEO}`} />
           
-          <div className="px-4 py-2">
+          <div className="px-4 py-2 mt-2">
+            <span className="text-[9px] uppercase tracking-widest text-[#444] font-bold">Instruments</span>
+          </div>
+          <SidebarItem icon={Droplets} label="Groundwater & Hydro" to={`/${GeoModule.GROUNDWATER}`} />
+          <SidebarItem icon={TestTube} label="Soil pH & Env" to={`/${GeoModule.SOIL_PH}`} />
+          <SidebarItem icon={Radio} label="Borehole Radiometric" to={`/${GeoModule.BOREHOLE_RADIOMETRIC}`} />
+          <SidebarItem icon={Mountain} label="Geotech Tilt & Extenso" to={`/${GeoModule.GEOTECHNICAL_TILT}`} />
+          <SidebarItem icon={Wind} label="Gas & Air Quality" to={`/${GeoModule.GAS_AIR_QUALITY}`} />
+          
+          <div className="px-4 py-2 mt-2">
             <span className="text-[9px] uppercase tracking-widest text-[#444] font-bold">Cognitive Lab</span>
           </div>
           <SidebarItem icon={Bot} label="Master Geo-Synthesizer" to={`/${GeoModule.AI_CONSULTANT}`} />
@@ -219,15 +274,52 @@ function AppContent() {
       <main className="flex-1 flex flex-col relative overflow-hidden bg-[#0A0A0B]">
         {/* Top telemetry control bar */}
         <header className="h-12 border-b border-[#333333] flex items-center justify-between px-6 bg-[#161617] shrink-0 z-10">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5 text-[10px] text-[#888888] font-mono font-semibold">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-              CORE METRIC // {systemClock}
+          <div className="flex items-center gap-3">
+            {/* Main Header Title/Logo */}
+            <div className="flex items-center gap-1.5 shrink-0 select-none">
+              <span className="text-xs font-bold tracking-tight uppercase italic font-mono text-[#FF5722]">GEOAI PRO</span>
+              <span className="text-[10px] font-mono text-[#444] font-bold">/</span>
+              <span className="text-[9px] text-[#888] font-mono uppercase tracking-widest font-semibold">DIGITAL TWIN V4.0</span>
             </div>
-            <div className="h-4 w-px bg-[#333]"></div>
-            <div className="flex items-center gap-2 text-[10px] text-[#888]">
-              <Cpu size={12} className="text-[#FF5722]" />
-              <span className="font-mono">NVIDIA A100 // ACTIVE SERVICE</span>
+            
+            {/* LIVE / DUMMY Toggle switch */}
+            <div className="flex items-center gap-1.5 shrink-0 select-none ml-1">
+              <span className="text-[9px] font-mono font-bold text-[#555] tracking-widest hidden sm:inline">API MODE:</span>
+              <button
+                onClick={toggleApiMode}
+                className={cn(
+                  "relative inline-flex h-5 w-[60px] shrink-0 cursor-pointer rounded-full border border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                  apiMode === 'LIVE' ? "bg-emerald-950/80 border-emerald-500/30" : "bg-neutral-850 border-neutral-700"
+                )}
+                id="api-mode-toggle"
+                title={`Switch to ${apiMode === 'LIVE' ? 'DUMMY' : 'LIVE'} Mode`}
+              >
+                <span className="sr-only">Toggle API Mode</span>
+                <span
+                  className={cn(
+                    "pointer-events-none relative inline-block h-3.5 w-3.5 transform rounded-full ring-0 transition duration-200 ease-in-out mt-[2px]",
+                    apiMode === 'LIVE' ? "translate-x-10 bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" : "translate-x-1 bg-neutral-400"
+                  )}
+                />
+                <span className={cn(
+                  "absolute text-[7px] font-mono font-bold tracking-tight uppercase transition-all duration-200 select-none top-[4px]",
+                  apiMode === 'LIVE' ? "left-2 text-emerald-400" : "right-2 text-neutral-400"
+                )}>
+                  {apiMode}
+                </span>
+              </button>
+            </div>
+            
+            <div className="h-4 w-px bg-[#333] shrink-0"></div>
+
+            {/* Header-Mounted API Health Monitor */}
+            <ApiHealthMonitor />
+
+            <div className="h-4 w-px bg-[#333] shrink-0 hidden md:block"></div>
+
+            <div className="hidden md:flex items-center gap-1.5 text-[10px] text-[#888888] font-mono font-semibold shrink-0">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+              SYS CLOCK // {systemClock}
             </div>
           </div>
           
@@ -240,6 +332,13 @@ function AppContent() {
                 className="bg-black/40 border border-[#333] rounded px-8 py-1 text-[10px] w-48 focus:outline-none focus:border-[#FF5722] transition-colors font-mono"
               />
             </div>
+            <button 
+              onClick={() => setIsAnalyticsOpen(true)}
+              className="flex items-center gap-1.5 bg-[#161617] text-gray-300 border border-[#333333] px-3 py-1 rounded text-[10px] font-bold hover:bg-white/5 transition-colors uppercase tracking-tight cursor-pointer"
+            >
+              <Sliders size={12} className="text-[#00E5FF]" />
+              Analytics Suite
+            </button>
             <button 
               onClick={() => setIsUploaderOpen(true)}
               className="flex items-center gap-1.5 bg-[#FF5722] text-black px-3 py-1 rounded text-[10px] font-bold hover:bg-[#ff7043] transition-colors uppercase tracking-tight cursor-pointer"
@@ -272,6 +371,11 @@ function AppContent() {
                 <Route path={`/${GeoModule.GPR}`} element={<GPRModule />} />
                 <Route path={`/${GeoModule.GEOCHEM}`} element={<GeochemModule />} />
                 <Route path={`/${GeoModule.METEO}`} element={<MeteorologyModule />} />
+                <Route path={`/${GeoModule.GROUNDWATER}`} element={<GroundwaterModule />} />
+                <Route path={`/${GeoModule.SOIL_PH}`} element={<SoilPHModule />} />
+                <Route path={`/${GeoModule.BOREHOLE_RADIOMETRIC}`} element={<BoreholeRadiometricModule />} />
+                <Route path={`/${GeoModule.GEOTECHNICAL_TILT}`} element={<GeotechnicalTiltExtensoModule />} />
+                <Route path={`/${GeoModule.GAS_AIR_QUALITY}`} element={<GasAirQualityModule />} />
                 <Route path={`/${GeoModule.AI_CONSULTANT}`} element={<MasterGeoSynthesizer />} />
                 <Route path={`/${GeoModule.SIMULATION}`} element={<SimulationModule />} />
                 <Route path={`/${GeoModule.DIAGNOSTICS}`} element={<SystemDiagnostics />} />
@@ -285,11 +389,12 @@ function AppContent() {
         {/* Core System Footer status */}
         <footer className="h-6 border-t border-[#333333] bg-[#0E0E0F] px-4 flex items-center justify-between font-mono text-[9px] text-[#555555] shrink-0">
           <div className="flex items-center gap-4">
+            <span className="text-[#00E5FF] font-bold tracking-wider mr-2 border-r border-[#222222] pr-4 uppercase">GeoAI by Ivan Hutabarat</span>
             <span>MEM: 14.8GB / 32GB</span>
             <span>GPU_TEMP: 41.5°C</span>
             <span>API_LATENCY: 110ms</span>
           </div>
-          <div className="flex items-center gap-2 italic">
+          <div className="flex items-center gap-3 italic">
             {isProcessing ? (
                <>
                  <Loader2 size={10} className="text-[#FF5722] animate-spin" />
@@ -301,22 +406,33 @@ function AppContent() {
                  <span>SWARM DEBATERS READY FOR INFERENCE</span>
                </>
             )}
+            <span className="text-[8px] font-sans text-neutral-500 hover:text-neutral-300 transition-colors uppercase not-italic font-bold tracking-widest px-2 py-0.5 bg-neutral-900 border border-neutral-800 rounded select-none shrink-0 ml-1">
+              Ivan Hutabarat (Eugene)
+            </span>
           </div>
         </footer>
       </main>
 
       {/* Right panel docked Swarm Debate Meeting Room */}
-      <SwarmRoom 
-        activeModule={activeModulePath as string} 
-        drillCoordinates={drillCoords} 
-        onClearCoordinates={() => setDrillCoords(null)} 
-      />
+      {activeModulePath !== "simulation" && (
+        <SwarmRoom 
+          activeModule={activeModulePath as string} 
+          drillCoordinates={drillCoords} 
+          onClearCoordinates={() => setDrillCoords(null)} 
+        />
+      )}
 
       {/* Cloud Store Importer modal */}
       <FileUploader 
         isOpen={isUploaderOpen} 
         onClose={() => setIsUploaderOpen(false)} 
         onUpload={handleUpload} 
+      />
+
+      {/* Analytics Master Drawer */}
+      <AnalyticsDrawer
+        isOpen={isAnalyticsOpen}
+        onClose={() => setIsAnalyticsOpen(false)}
       />
     </div>
   );
