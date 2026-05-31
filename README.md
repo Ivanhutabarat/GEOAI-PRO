@@ -5,7 +5,7 @@
 <div align="center">
 
   ![Version](https://img.shields.io/badge/Version-v4.0.0--Digital--Twin-FF5722?style=for-the-badge&logo=git)
-  ![Architect](https://img.shields.io/badge/Architect-Ivan%20Hutabarat%20(Eugene)-00E5FF?style=for-the-badge&logo=keycdn)
+  ![Architect](https://img.shields.io/badge/Architect-GeoAI%20Pro%20Coordinator-00E5FF?style=for-the-badge&logo=keycdn)
   ![Security](https://img.shields.io/badge/Security-SHA--256%20Heartbeat--Lock-brightgreen?style=for-the-badge&logo=shield)
   ![Status](https://img.shields.io/badge/Status-Operational%20Workstation-emerald?style=for-the-badge)
 
@@ -111,14 +111,29 @@ Unlike traditional single-variable AI models, GeoAI Pro utilizes a **multi-agent
 ### 💾 B. Global Knowledge memory Repository (`GlobalKnowledgeRepository`)
 Provides a local physical vector database.
 * **Parameters Vectorization:** Subsurface values (Acoustic Impedance, Deep Induction, Gas concentration, Density) are indexed.
-* **Spatial Similary Match:** Instantly query existing models and recall high-affinity past optimizations using a multi-dimensional Euclidean proximity formula (minimum 90% matching threshold).
+* **Spatial Similarity Match:** Instantly query existing models and recall high-affinity past optimizations using a multi-dimensional Euclidean proximity formula (minimum 90% matching threshold).
 * **Base64 Snapshots**: Automatically stores and recalls base64-encoded visual diagrams of geological slices for instantaneous, latency-free rendering.
 
 ### 🛡️ C. Hardware License Heartbeat & Integrity Layer (`identityValidator`)
 A rigorous license validation sequence running across client and server environments:
 * **Binary Hash Anchor:** The file `/config/.identity_lock` acts as the physical hardware license key.
-* **Static Verification Routine:** Prior to React bootstrapping, `prebootIntegrityCheck()` queries the backend `/api/integrity-check` endpoint while validating the signature `Ivan Hutabarat (Eugene)` using an isolated pure TypeScript implementation of the SHA-256 algorithm.
+* **Static Verification Routine:** Prior to React bootstrapping, `prebootIntegrityCheck()` queries the backend `/api/integrity-check` endpoint while validating the signature `DEV_FULLNAME` using an isolated pure TypeScript implementation of the SHA-256 algorithm.
 * **Integrity Shield:** Any modification to the signature or checksum parameter results in immediate shutdown, freezing the workspace and printing a high-impact `FATAL_INTEGRITY_EXCEPTION` safety panel.
+
+### 🔒 D. Advanced Environment Hardening & Global Masking Engine
+To protect institutional information and private developer records:
+* **Secure Boundary Layout:** Sensitive contact signatures (e.g., "Ivan Hutabarat (Eugene)") and organizational email addresses are kept strictly behind server-side variables such as `process.env.DEV_FULLNAME` and `process.env.DEV_NICKNAME`.
+* **Global RegEx Sanitization Engine:** A high-speed, regular expression-based masking filter (`scrubTelemetryLogs`) intercepts logs, telemetry events, and server responses on the fly. This prevents plaintext tokens, sensitive phone numbers, and authorized email identifiers from leaking into logs or frontend representations, automatically converting them to secure hashes or `[REDACTED]` markers.
+
+### 🛡️ E. Scoped 4-Tier WhatsApp OTP Shield
+Securing critical telemetry controls and models against accidental or unauthorized deletion:
+* **Identity Handshake:** Linked dynamically via `process.env.OWNER_WHATSAPP` (`+6285260245100`), this provides a 4-tier validation pathway.
+* **Deletion Isolation Boundary:** This security lockout challenge is completely isolated from standard UI operations. It is triggered **EXCLUSIVELY** upon administrative calls requesting the deletion or complete purging of the simulated sandbox models ("menghapus otak dummy"), ensuring stable daily exploration workflows.
+
+### 📹 F. Van-Botz Media & Fake Chat Ingestion Container
+For rich simulation modeling and interactive telemetry:
+* **Media Processing Container:** Includes modular multimedia pipelines and log processing hooks designed to interface with the `Van-Botz` telemetry architecture (`https://github.com/Ivanhutabarat/Van-Botz.git`).
+* **Sandbox Encapsulation:** The Fake Chat Generation Engine is encapsulated entirely inside strict conditional loops and private hooks, preventing artificial message traffic or mock metadata from contaminating production-grade server logs.
 
 ---
 
@@ -150,6 +165,12 @@ To optimize screen space, geological and visual controls are consolidated inside
 * **Cohesive Micro-Gradients:** Active modules feature a 1px border styled with a faint glowing aura to represent real physical workstation terminals.
 * **Generous Workspace Density:** Implements a strict 16px gutter between system operations logs and modular diagnostic readouts, preventing information clutter while preserving maximum readability.
 
+### 🔑 III. Secure Credentials Integration Bridge (Dynamic Ingestion UI)
+To securely ingest on-the-fly execution keys without manual file modification:
+* **Secure Ingestion Panel:** Embedded safely inside the expandable **API Routing Failover Monitor popover** container.
+* **Cryptographic Storage & Obfuscation:** Values input for `GEMINI_API_KEY` and `CUSTOM_SWARM_TOKEN` are securely encrypted using a clientside, salt-based XOR obfuscation algorithm (`encryptKey` / `decryptKey`) before being stored. No keys are ever stored or printed as plaintext.
+* **Live Padlock Coupling Feedback:** The integration status features real-time state synchronization; a status badge transitions dynamically with high-contrast indicator lights from `STANDBY` to a verified green `COUPLED` state immediately upon validation.
+
 ---
 
 ## 📑 5. Report Exportation & Watermark Audit Policy
@@ -159,14 +180,23 @@ Analytical reports generated via the **Central Command Panel** or the **Analytic
 * ⚖️ **Watermark Policy:** Under the master directive of the Senior Architect, all analytical reports export with a permanent, high-contrast structural footer tag declaring:
   
   ```
-  Hasil ini dibuat oleh GEOAI by Ivan Hutabarat
+  Hasil ini dibuat oleh GEOAI by [DEV_FULLNAME]
   ```
   
   This watermark is baked into the layout to ensure the legitimacy and compliance of deep exploration data across global structural and regulatory agencies.
 
 ---
 
-## 🚀 6. Developer Workstation Boot Instructions
+## 🛠️ 6. Async 3D Canvas Event Binding Hotfix
+
+To resolve runtime event dispatch errors and prevent rendering crashes:
+* **Neutralizing Null Target Failures:** Fixed the `Uncaught TypeError: Cannot read properties of null (reading 'addEventListener')` issue.
+* **Explicit Event Targeting:** Encapsulated the 3D `<Canvas>` element within a dedicated parent-controlled layout wrapper ref to prevent Three.js or OrbitControls from attaching event handlers directly to missing elements.
+* **Safe Controls Lifecycle Guard:** Designed the custom `SafeOrbitControls` lifecycle dismount wrapper. It intercepts the component destruction sequence, successfully dismounting WebGL rendering contexts, removing event listeners, and running `.dispose()` with zero lingering event traces.
+
+---
+
+## 🚀 7. Developer Workstation Boot Instructions
 
 ### Prerequisites
 * **Node.js**: v18+
@@ -184,11 +214,15 @@ Analytical reports generated via the **Central Command Panel** or the **Analytic
    ```env
    # .env
    GEMINI_API_KEY=your_authorized_private_key
+   DEV_FULLNAME=Your Name
+   DEV_NICKNAME=Your Nickname
+   OWNER_WHATSAPP=+6285260245100
    ```
 
-3. **Initialize Dev Server:**
+3. **Initialize Dev Server with Forced Dependency Optimization:**
+   Force-clear Hot Module Replacement (HMR) and rebuild core dependencies:
    ```bash
-   npm run dev
+   npm run dev -- --force
    ```
 
 4. **Verify Linter and Code Quality Rules:**
@@ -205,7 +239,7 @@ Analytical reports generated via the **Central Command Panel** or the **Analytic
 
 <div align="right">
   
-  *Designed, coded, and architected by* **Ivan Hutabarat (Eugene)**.  
+  *Designed, coded, and architected by* **GeoAI Pro Coordinator**.  
   ***Secure licensing active. Zero-compromise workstation standard enabled.***
-
+  
 </div>

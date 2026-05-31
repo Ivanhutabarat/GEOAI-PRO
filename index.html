@@ -1,24 +1,31 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#FF5722" />
-    <title>GeoAI Pro: Geophysics Suite</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <title>IVAN-GEOAI PRO v4.0</title>
     <script>
+      // Fallback stubs to prevent "@vitejs/plugin-react can't detect preamble" error
+      if (!window.$RefreshReg$) window.$RefreshReg$ = () => {};
+      if (!window.$RefreshSig$) window.$RefreshSig$ = () => (type) => type;
+      window.__vite_plugin_react_preamble_installed__ = true;
+
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('Service Worker Registered successfully', reg.scope))
-            .catch(err => console.warn('Service Worker Registration failed', err));
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            registration.unregister().then(function(boolean) {
+              if (boolean) {
+                console.log('Unregistered stale service worker.');
+              }
+            });
+          }
         });
       }
     </script>
+
+  </head>
+  <body class="bg-neutral-950 text-neutral-100 antialiased min-h-screen flex flex-col">
+    <div id="root" class="flex-1 flex flex-col w-full h-full min-h-screen"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

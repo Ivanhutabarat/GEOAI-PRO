@@ -1,5 +1,5 @@
 // src/api/webhook/whatsapp.ts
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 
@@ -8,7 +8,7 @@ export const whatsappWebhookHandler = async (req: Request, res: Response) => {
   try {
     const { sender, fileName, fileData, mimeType, text, message } = req.body;
 
-    const targetNumber = "6285260245100";
+    const targetNumber = (process.env.DEV_PHONE || "6285260245100").replace(/\D/g, "");
     const cleanedSender = sender ? sender.toString().replace(/[^0-9]/g, "") : "";
     if (cleanedSender && cleanedSender !== targetNumber && !cleanedSender.endsWith(targetNumber)) {
       console.log(`[Webhook Guard] Strictly ignoring unapproved sender: ${sender}`);
@@ -16,17 +16,17 @@ export const whatsappWebhookHandler = async (req: Request, res: Response) => {
     }
 
     // Gatekeeper Validation Layer (Lightweight Zero-Friction Integrity Check)
-    const SYSTEM_AUTHOR = "Ivan Hutabarat";
+    const SYSTEM_AUTHOR = process.env.DEV_FULLNAME || "";
     let isIntegrityIntact = true;
     try {
-      if (SYSTEM_AUTHOR !== "Ivan Hutabarat") {
+      if (!SYSTEM_AUTHOR || SYSTEM_AUTHOR === "[REDACTED_IDENTITY]") {
         isIntegrityIntact = false;
       } else {
         const lockPath = path.join(process.cwd(), "config", ".identity_lock");
         if (fs.existsSync(lockPath)) {
           const lockContent = fs.readFileSync(lockPath, "utf-8");
           const parsedLock = JSON.parse(lockContent);
-          if (!parsedLock.signature || !parsedLock.signature.includes("Ivan Hutabarat")) {
+          if (!parsedLock.signature || !parsedLock.signature.includes(SYSTEM_AUTHOR)) {
             isIntegrityIntact = false;
           }
         } else {

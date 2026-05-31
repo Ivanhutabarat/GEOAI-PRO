@@ -1,15 +1,15 @@
 node_modules/
-build/
-dist/
-coverage/
-.DS_Store
-*.log
+# dist/
+# dist-ssr/
+.cache/
+.vite/
 .env*
 !.env.example
-
-# WhatsApp Baileys local credential stores
 baileys_auth_info/
 auth_info_baileys/
 .baileys_auth/
 baileys_store.json
 sessions/
+coverage/
+.DS_Store
+*.log

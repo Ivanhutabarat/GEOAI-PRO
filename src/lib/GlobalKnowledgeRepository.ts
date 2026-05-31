@@ -1,4 +1,4 @@
-import { Scenario } from '../store/OptimizerStore';
+
 import { validateIdentity } from './identityValidator';
 
 export interface RepositoryParameters {

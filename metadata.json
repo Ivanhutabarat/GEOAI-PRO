@@ -1,11 +1,7 @@
 {
-  "name": "GeoAI Pro: Geophysics Intelligence Suite",
-  "description": "Professional geophysics platform for raw data analysis (.segy, .las, .mseed, .shp). Features automated denoising, 3D visualization, and Gemini-powered interpretation for seismic, well logging, and spatial data.",
-  "requestFramePermissions": [
-    "camera",
-    "microphone",
-    "geolocation"
-  ],
+  "name": "Ivan-GeoAI Pro",
+  "description": "Dynamic multi-agent geophysics swarm room and cross-section engine",
+  "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]
