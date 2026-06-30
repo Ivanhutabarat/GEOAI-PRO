@@ -1,18 +1,5 @@
 import { useEffect } from 'react';
 
-export const SWARM_API_KEYS = [
-  "AIzaSyD-wM_UgIBBvc_FvusgkK7OINBHexaWZsQ",
-  "AIzaSyDGNgvCltKRYwTxcmty8uwR3LKbaTcq9Fg",
-  "AIzaSyB9xEFz8SvcMGiFrOAmtbwNm_oGYl-VPmg"
-];
-
-let currentKeyIndex = 0;
-export const getActiveSwarmKey = () => SWARM_API_KEYS[currentKeyIndex];
-export const rotateSwarmKey = () => {
-  currentKeyIndex = (currentKeyIndex + 1) % SWARM_API_KEYS.length;
-  console.log(`[SYSTEM] Swarm API Key Rotated. Current Index: ${currentKeyIndex}`);
-};
-
 export const recordActivity = async (action: string, payload: any, isSandbox: boolean = false) => {
   try {
     await fetch('/api/record-activity', {

@@ -47,6 +47,7 @@ export default function CentralCommand() {
   const [exportConfirmationEnabled, setExportConfirmationEnabled] = useState(false);
   const [highlightDrift, setHighlightDrift] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [isExportLoading, setIsExportLoading] = useState(false);
   const [simulatedAnimateLogs, setSimulatedAnimateLogs] = useState<string[]>([]);
 
   useEffect(() => {
@@ -72,7 +73,54 @@ export default function CentralCommand() {
     };
   }, [isAnimatingLogs]);
 
-  const exportToPDF = () => { generateDashboardSnapshot("dashboard-root", "GEOAI_Survey_Report.pdf"); };
+  const executeLocalPDFDownload = async () => {
+    setIsExportLoading(true);
+    try {
+      await generateDashboardSnapshot("dashboard-capture-zone", "GEOAI_Survey_Report.pdf", 'save', { logs: systemLogs, data: globalData });
+    } catch (e: any) {
+      console.error(e);
+      addLog({ type: "ERROR", source: "SYSTEM", message: "[SYSTEM NOTICE] Jika unduhan lokal diblokir oleh keamanan Iframe, silakan klik opsi Kirim ke WhatsApp!" });
+      alert("[SYSTEM NOTICE] Jika unduhan lokal diblokir oleh keamanan Iframe, silakan klik opsi Kirim ke WhatsApp!");
+    } finally {
+      setIsExportLoading(false);
+      setShowExportModal(false);
+    }
+  };
+
+  const dispatchPDFToWhatsApp = async () => {
+    setIsExportLoading(true);
+    try {
+      const pdfBlob = await generateDashboardSnapshot("dashboard-capture-zone", "GEOAI_Survey_Report.pdf", 'blob', { logs: systemLogs, data: globalData });
+      if (pdfBlob && pdfBlob instanceof Blob) {
+        const formData = new FormData();
+        formData.append('file', pdfBlob, 'GEOAI_Survey_Report.pdf');
+        formData.append('targetNumber', '6285260245100');
+        formData.append('summary', 'Hasil Snapshot Geofisika dari Environment Sandbox Live.');
+
+        const res = await fetch("/api/webhook/whatsapp/upload-report", {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+           addLog({ type: "INFO", source: "WA-GATEWAY", message: "PDF Snapshot sent to Admin WhatsApp successfully!" });
+        } else {
+           addLog({ type: "ERROR", source: "WA-GATEWAY", message: data.error || "Failed to dispatch PDF." });
+        }
+      } else {
+        throw new Error("PDF blob generation returned null/undefined.");
+      }
+    } catch (e: any) {
+      console.error(e);
+      addLog({ type: "ERROR", source: "SYSTEM", message: `[SYSTEM NOTICE] Failed to prepare PDF for WhatsApp: ${e.message}` });
+      alert(`[SYSTEM NOTICE] Gagal memproses PDF: ${e.message}`);
+    } finally {
+      setIsExportLoading(false);
+      setShowExportModal(false);
+    }
+  };
+
+  const exportToPDF = () => { setShowExportModal(true); };
 
   const executePdfExport = () => {
     validateIdentity();
@@ -1066,42 +1114,53 @@ Output a highly concise 3-sentence expert explanation.`;
               <span className="text-sm font-bold uppercase tracking-wider">GEOAI SECURED EXPORT DESK</span>
             </div>
             
-            <div className="space-y-4">
-              <p className="text-[11px] leading-relaxed">
-                You have requested a secure geophysics survey report. Please confirm the following critical metadata fields and branding properties before dispatching the print mainframe:
-              </p>
-              
-              <div className="bg-black/50 border border-[#222] p-3 rounded-lg space-y-2 text-[10px]">
-                <div className="flex justify-between"><span className="text-[#666]">System Header:</span> <span className="text-white font-bold">GeoAI Pro v4.0</span></div>
-                <div className="flex justify-between"><span className="text-[#666]">Security Stamp:</span> <span className="text-[#00E5FF] font-bold">{import.meta.env.VITE_CHART_WATERMARK}</span></div>
-                <div className="flex justify-between"><span className="text-[#666]">Survey Base:</span> <span className="text-white">{activeFileName}</span></div>
-                <div className="flex justify-between"><span className="text-[#666]">Drift Stance:</span> <span className={highlightDrift ? "text-amber-500 font-bold animate-pulse" : "text-emerald-500 font-bold"}>{highlightDrift ? "UNSTABLE DRIFT WARNING" : "STABLE NOMINAL"}</span></div>
+            {isExportLoading ? (
+              <div className="space-y-4 py-6 flex flex-col items-center justify-center text-center">
+                <div className="w-8 h-8 border-2 border-t-[#00E5FF] border-r-[#B554FF] border-b-[#00E5FF] border-l-[#B554FF] rounded-full animate-spin"></div>
+                <p className="text-[#00E5FF] animate-pulse uppercase font-bold text-[10px]">
+                  [SYSTEM] Freezing streams and compiling multi-system snapshot...
+                </p>
               </div>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  <p className="text-[11px] leading-relaxed">
+                    You have requested a secure geophysics survey report. Please choose the dispatch protocol for the generated Multi-System Snapshot:
+                  </p>
+                  
+                  <div className="bg-black/50 border border-[#222] p-3 rounded-lg space-y-2 text-[10px]">
+                    <div className="flex justify-between"><span className="text-[#666]">System Header:</span> <span className="text-white font-bold">GeoAI Pro v4.0</span></div>
+                    <div className="flex justify-between"><span className="text-[#666]">Security Stamp:</span> <span className="text-[#00E5FF] font-bold">{import.meta.env.VITE_CHART_WATERMARK}</span></div>
+                    <div className="flex justify-between"><span className="text-[#666]">Survey Base:</span> <span className="text-white">{activeFileName}</span></div>
+                  </div>
+                </div>
 
-              <div className="p-3 bg-neutral-900/40 border border-neutral-800 rounded text-[10px] text-gray-500 leading-normal">
-                Approved credentials authorize watermarking signature: // <strong>{import.meta.env.VITE_DEV_SIGNATURE}</strong>.
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6 pt-3 border-t border-[#222] justify-end">
-              <button
-                type="button"
-                onClick={() => setShowExportModal(false)}
-                className="px-4 py-2 border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-900 text-[#888] hover:text-white text-xs font-bold uppercase rounded-lg transition-colors cursor-pointer"
-              >
-                Cancel Draft
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowExportModal(false);
-                  generateDashboardSnapshot("dashboard-root", "GEOAI_Survey_Report.pdf");
-                }}
-                className="px-4 py-2 bg-[#B554FF] hover:bg-[#a640ff] text-black text-xs font-bold uppercase rounded-lg transition-colors cursor-pointer"
-              >
-                Confirm & Generate Report
-              </button>
-            </div>
+                <div className="flex flex-col gap-3 mt-6 pt-3 border-t border-[#222]">
+                  <button
+                    type="button"
+                    onClick={executeLocalPDFDownload}
+                    className="w-full px-4 py-3 bg-[#111] hover:bg-[#222] border border-[#00E5FF]/40 text-[#00E5FF] text-xs font-bold uppercase rounded-lg transition-colors cursor-pointer text-center"
+                  >
+                    Unduh Langsung (Local PDF)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={dispatchPDFToWhatsApp}
+                    className="w-full px-4 py-3 bg-[#B554FF] hover:bg-[#a640ff] text-black text-xs font-bold uppercase rounded-lg transition-colors cursor-pointer text-center"
+                  >
+                    Kirim Laporan ke WhatsApp Admin
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => setShowExportModal(false)}
+                    className="mt-2 w-full text-center px-4 py-2 text-[#888] hover:text-white text-[10px] font-bold uppercase cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

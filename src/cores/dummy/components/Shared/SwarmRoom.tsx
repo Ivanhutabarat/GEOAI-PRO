@@ -981,19 +981,7 @@ Please adapt your analysis to whatever column headers are present in the provide
 
     // CONDITION B (New Data + API ON): Decrypt key & send to live Gemini API
     if (isApiActive) {
-      console.log("[SYSTEM] Live API Mode Active. Key injected. Routing to external LLM...");
-      // SECURE AIR-GAP BOUNDARY: Decrypt key ONLY because we are strictly in COUPLED state
-      
-      let decryptedKey = getEffectiveApiKey();
-      if (!decryptedKey) {
-        decryptedKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-        if (!decryptedKey) {
-          const encodedKey = localStorage.getItem("_vanbotz_encrypted_gemini_key") || "";
-          decryptedKey = decryptKey(encodedKey);
-        }
-      }
-
-
+      console.log("[SYSTEM] Live API Mode Active. Routing to external LLM...");
       try {
         const response = await fetchQueued("/api/swarm/debate", {
           method: "POST",
@@ -1004,7 +992,6 @@ Please adapt your analysis to whatever column headers are present in the provide
             coordinates: drillCoordinates,
             spatialData: spatialStoreData,
             history: messagesRef.current,
-            apiKey: decryptedKey,
             activeAgents: activeAgents.map(a => {
               let role = "Expert Analyst";
               if (a.id === "GV") role = "Chief Geophysicist";
@@ -1330,6 +1317,7 @@ Please adapt your analysis to whatever column headers are present in the provide
 
       {/* Discussion Chat Thread */}
       <div 
+        id="swarm-chat-history"
         ref={scrollRef}
         className="flex-1 p-4 overflow-y-auto space-y-4 bg-[#0c0c0d] scrollbar-thin scrollbar-thumb-white/5"
       >

@@ -103,13 +103,6 @@ class ApiQueueManager {
 
         while (attempts < maxAttempts) {
             const currentOptions = { ...task.options };
-            if (currentOptions.method === 'POST' && currentOptions.body) {
-                try {
-                   const bodyObj = JSON.parse(currentOptions.body as string);
-                   bodyObj.apiKey = getEffectiveApiKey(attempts > 0);
-                   currentOptions.body = JSON.stringify(bodyObj);
-                } catch(e) {}
-            }
 
             const controller = new AbortController();
             const timeoutId = setTimeout(() => {

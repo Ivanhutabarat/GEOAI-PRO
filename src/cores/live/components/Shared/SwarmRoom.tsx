@@ -1,6 +1,9 @@
 import { recordActivity, useGeoSync, forceRestoreState } from '../../../../lib/geoSync';
 import { useAppContext } from '../../context/AppContext';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { SeismicModule } from '../../../../components/modules/SeismicModule';
+import { GasSafetyModule } from '../../../../components/modules/GasSafetyModule';
+import { GeomechanicsModule } from '../../../../components/modules/GeomechanicsModule';
 
 export const useTimeTravelOverride = (setGlobalData: any) => {
   useEffect(() => {
@@ -574,6 +577,7 @@ export default function SwarmRoom({ activeModule, drillCoordinates, onClearCoord
   const [showWAAuth, setShowWAAuth] = useState(false);
   const [isWAConnected, setIsWAConnected] = useState(false);
   const [waQRUrl, setWaQRUrl] = useState<string>("");
+  const [waPairingCode, setWaPairingCode] = useState<string>("");
   const [waStatusStr, setWaStatusStr] = useState<string>("Waiting for QR");
   const [isWAScanning, setIsWAScanning] = useState(false);
   const [waLogs, setWaLogs] = useState<{sender: string, text: string}[]>([]);
@@ -685,6 +689,7 @@ Please adapt your analysis to whatever column headers are present in the provide
         setIsWAConnected(data.connected);
         setWaStatusStr(data.status || "Waiting for QR");
         setWaQRUrl(data.qr || "");
+        setWaPairingCode(data.pairingCode || "");
         if (data.logs) {
           setWaLogs(data.logs);
         }
@@ -982,19 +987,7 @@ Please adapt your analysis to whatever column headers are present in the provide
 
     // CONDITION B (New Data + API ON): Decrypt key & send to live Gemini API
     if (isApiActive) {
-      console.log("[SYSTEM] Live API Mode Active. Key injected. Routing to external LLM...");
-      // SECURE AIR-GAP BOUNDARY: Decrypt key ONLY because we are strictly in COUPLED state
-      
-      let decryptedKey = getEffectiveApiKey();
-      if (!decryptedKey) {
-        decryptedKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-        if (!decryptedKey) {
-          const encodedKey = localStorage.getItem("_vanbotz_encrypted_gemini_key") || "";
-          decryptedKey = decryptKey(encodedKey);
-        }
-      }
-
-
+      console.log("[SYSTEM] Live API Mode Active. Routing to external LLM...");
       try {
         const response = await fetchQueued("/api/swarm/debate", {
           method: "POST",
@@ -1005,7 +998,6 @@ Please adapt your analysis to whatever column headers are present in the provide
             coordinates: drillCoordinates,
             spatialData: spatialStoreData,
             history: messagesRef.current,
-            apiKey: decryptedKey,
             activeAgents: activeAgents.map(a => {
               let role = "Expert Analyst";
               if (a.id === "GV") role = "Chief Geophysicist";
@@ -1331,9 +1323,18 @@ Please adapt your analysis to whatever column headers are present in the provide
 
       {/* Discussion Chat Thread */}
       <div 
+        id="swarm-chat-history"
         ref={scrollRef}
         className="flex-1 p-4 overflow-y-auto space-y-4 bg-[#0c0c0d] scrollbar-thin scrollbar-thumb-white/5"
       >
+        {/* Extracted Geophysics Isolated State Renderers */}
+        {(globalData?.modules?.seismic || restoredState?.restoredPayload?.amplitudo) && (
+          <div className="mb-4 space-y-2">
+            <SeismicModule data={{ payload: globalData?.modules?.seismic || restoredState?.restoredPayload }} />
+            <GasSafetyModule data={{ payload: globalData?.modules?.gas || restoredState?.restoredPayload }} />
+            <GeomechanicsModule data={{ payload: globalData?.modules?.geomechanics || restoredState?.restoredPayload }} />
+          </div>
+        )}
         {apiErrorBanner && (
           <div className="p-3 bg-red-500/10 border border-red-500 text-red-500 text-[10px] font-mono font-bold uppercase rounded flex items-center justify-between shadow-lg">
             <span className="flex items-center gap-2"><AlertCircle size={12} />Production Error: Gemini API Core Connection Failed.</span>
@@ -1531,7 +1532,7 @@ Please adapt your analysis to whatever column headers are present in the provide
           <div className="w-full max-w-sm bg-[#181819] border border-[#2e2e30] p-6 rounded-lg shadow-2xl space-y-4">
             <div className="text-center space-y-2">
               <h3 className="text-sm font-bold uppercase tracking-wider font-mono text-white">COMM-LINK COUPLING</h3>
-              <p className="text-[10px] text-gray-400 leading-normal font-mono uppercase">Scan live QR with your mobile WhatsApp scanner to link core telemetry</p>
+              <p className="text-[10px] text-gray-400 leading-normal font-mono uppercase">Scan live QR or use the pairing code below to link telemetry</p>
             </div>
 
             {/* LIVE QR CODE EMBEDDING */}
@@ -1544,12 +1545,19 @@ Please adapt your analysis to whatever column headers are present in the provide
                   <div className="text-[11px] font-bold text-black uppercase font-mono">Linked successfully!</div>
                 </div>
               ) : waQRUrl ? (
-                <img 
-                  src={waQRUrl} 
-                  alt="WhatsApp Pairing QR Code" 
-                  className="w-full h-full object-contain" 
-                  referrerPolicy="no-referrer"
-                />
+                <div className="flex flex-col items-center justify-center">
+                    <img 
+                    src={waQRUrl} 
+                    alt="WhatsApp Pairing QR Code" 
+                    className="w-full h-full object-contain" 
+                    referrerPolicy="no-referrer"
+                    />
+                    {waPairingCode && (
+                        <div className="mt-2 text-center absolute bottom-2 w-full">
+                            <span className="font-mono text-xl font-bold text-black bg-[#FF5722]/80 px-2 py-1 rounded tracking-widest">{waPairingCode}</span>
+                        </div>
+                    )}
+                </div>
               ) : (
                 <div className="flex flex-col items-center gap-2 text-center">
                   <Loader2 size={24} className="animate-spin text-[#FF5722]" />

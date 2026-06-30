@@ -15,6 +15,12 @@ export interface GeoDataStore {
   tiltExtensoData: any[];
   groundwaterData: any[];
   soilPhData: any[];
+  lastUpdate?: string;
+  modules?: {
+    seismic?: any;
+    gas?: any;
+    geomechanics?: any;
+  };
 }
 
 export interface LogEntry {
@@ -58,7 +64,7 @@ const defaultState: GeoDataStore = {
   soilPhData: [],
 };
 
-const defaultRaw: Record<keyof GeoDataStore, string> = {
+const defaultRaw: Record<string, string> = {
   gravityData: "",
   electricalData: "",
   gprData: "",
@@ -92,7 +98,7 @@ const GlobalGeoContext = createContext<GlobalGeoContextType>({
 
 export const GlobalGeoProvider = ({ children }: { children: ReactNode }) => {
   const [globalData, setGlobalData] = useState<GeoDataStore>(defaultState);
-  const [rawPayloads, setRawPayloads] = useState<Record<keyof GeoDataStore, string>>(defaultRaw);
+  const [rawPayloads, setRawPayloads] = useState<Record<string, string>>(defaultRaw as any);
   const [seismicMode, setSeismicMode] = useState<'exploration' | 'mitigation'>('exploration');
   const [systemLogs, setSystemLogs] = useState([] as LogEntry[]);
   const [activeFileName, setActiveFileName] = useState<string>("UNNAMED_DATATRACK");
@@ -119,7 +125,27 @@ export const GlobalGeoProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateModuleData = (moduleName: keyof GeoDataStore, rawText: string, parsedJson: any[]) => {
-    setGlobalData(prev => ({ ...prev, [moduleName]: parsedJson }));
+    // 1. STATE BUFFERING: Pause updates if a PDF export is running to prevent race conditions & UI tearing
+    if (typeof window !== 'undefined' && (window as any).isExportingPDF) {
+      console.warn(`[STREAM BUFFERED] Update for ${moduleName} paused during PDF generation.`);
+      return; 
+    }
+
+    // Immutable structural state update pattern to prevent White Screen of Death
+    setGlobalData(prevState => {
+      if (!prevState) return prevState;
+      return {
+        ...prevState,
+        lastUpdate: new Date().toISOString(),
+        modules: {
+          ...prevState.modules,
+          seismic: moduleName === 'seismicData' ? [...parsedJson] : prevState.modules?.seismic,
+          gas: moduleName === 'gasQualityData' ? [...parsedJson] : prevState.modules?.gas,
+          geomechanics: moduleName === 'geochemData' ? [...parsedJson] : prevState.modules?.geomechanics
+        },
+        [moduleName]: [...parsedJson] // retain old structure for backward compat
+      };
+    });
     if (moduleName === 'seismicData') {
       setRawPayloads(prev => ({ ...prev, [moduleName]: `[MODE: ${seismicMode.toUpperCase()}]\n${rawText}` }));
     } else {

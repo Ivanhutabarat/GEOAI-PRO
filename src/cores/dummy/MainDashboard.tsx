@@ -149,7 +149,19 @@ const ModuleHeader = ({ title, subtitle }: { title: string, subtitle?: string })
 );
 
 // --- App Content ---
+import { useAuth } from '../../context/AuthContext';
+
 function MainDashboard() {
+  const { isAuthenticated, requireAuth } = useAuth();
+
+  const handleDashboardClickCapture = (e: React.MouseEvent) => {
+    if (!isAuthenticated) {
+      e.stopPropagation();
+      e.preventDefault();
+      requireAuth(() => {});
+    }
+  };
+
   const location = useLocation();
   const activeModulePath = location.pathname === '/' ? GeoModule.DASHBOARD : location.pathname.slice(1) as GeoModule;
 
@@ -340,7 +352,7 @@ return () => clearTimeout(bootTimer);
   }
 
   return (
-    <div id="dashboard-root" className="flex h-screen bg-[#111111] text-white overflow-hidden font-sans">
+    <>
       {isBooting && (
         <div 
           onClick={() => setIsBooting(false)} 
@@ -368,6 +380,7 @@ return () => clearTimeout(bootTimer);
           `}</style>
         </div>
       )}
+      <div id="dashboard-root" className="flex h-screen bg-[#111111] text-white overflow-hidden font-sans" onClickCapture={handleDashboardClickCapture}>
 
       <AnimatePresence>
         {isSwitchingMode && (
@@ -526,9 +539,11 @@ return () => clearTimeout(bootTimer);
         </div>
       </aside>
 
-      {/* Center workspace frame */}
-      <main className="flex-1 flex flex-col relative overflow-hidden bg-[#0A0A0B]">
-        {/* High-Focus Navigation and Menu Transition Intercept Overlay */}
+      {/* Main Workspace and Right Panel Container for PDF Export Capture */}
+      <div id="dashboard-capture-zone" className="flex-1 flex overflow-hidden">
+        {/* Center workspace frame */}
+        <main className="flex-1 flex flex-col relative overflow-hidden bg-[#0A0A0B]">
+          {/* High-Focus Navigation and Menu Transition Intercept Overlay */}
         <AnimatePresence>
           {isNavigating && (
             <motion.div 
@@ -669,7 +684,7 @@ return () => clearTimeout(bootTimer);
         </header>
 
         {/* Module Render Container */}
-        <section className="flex-1 overflow-y-auto p-6 scrollbar-thin">
+        <section id="geoscience-module-view" className="flex-1 overflow-y-auto p-6 scrollbar-thin">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeModulePath}
@@ -759,6 +774,7 @@ return () => clearTimeout(bootTimer);
           onClearCoordinates={() => setDrillCoords(null)} />
 </div>
 )}
+      </div>
 
       {/* Cloud Store Importer modal */}
       <FileUploader 
@@ -864,8 +880,12 @@ return () => clearTimeout(bootTimer);
         )}
       </AnimatePresence>
     </div>
+    </>
   );
 }
 
 
-export default function MainDashboardWrapper() { return <HashRouter><GlobalGeoProvider><AppProvider><MainDashboard /></AppProvider></GlobalGeoProvider></HashRouter>; }
+import { AuthProvider } from '../../context/AuthContext';
+import { AuthModal } from '../../components/Shared/AuthModal';
+
+export default function MainDashboardWrapper() { return <HashRouter><AuthProvider><GlobalGeoProvider><AppProvider><AuthModal /><MainDashboard /></AppProvider></GlobalGeoProvider></AuthProvider></HashRouter>; }

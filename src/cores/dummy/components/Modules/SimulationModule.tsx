@@ -194,7 +194,7 @@ export default function SimulationModule() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-10rem)] space-y-6 bg-[#161617] p-5 border border-[#333] rounded-lg">
+    <div id="sandbox-environment" className="flex flex-col h-[calc(100vh-10rem)] space-y-6 bg-[#161617] p-5 border border-[#333] rounded-lg">
       <div className="flex justify-between items-start border-b border-[#222] pb-3">
         <div>
           <h1 className="text-xl font-bold uppercase italic font-mono text-white flex items-center gap-3">

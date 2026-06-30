@@ -39,8 +39,7 @@ export default function MasterGeoSynthesizer() {
         body: JSON.stringify({
           message: chatInput,
           globalData: rawPayloads,
-          history: chatHistory.slice(-5),
-          apiKey: getEffectiveApiKey()
+          history: chatHistory.slice(-5)
         })
       });
       const data = await res.json();
