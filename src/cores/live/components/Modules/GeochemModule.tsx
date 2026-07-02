@@ -13,7 +13,10 @@ import {
   Filter, 
   Atom, 
   Download, 
-  Cpu 
+  Cpu,
+  Plus,
+  X,
+  FlaskConical
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, LineChart, Line, Legend, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import UniversalIngestionPort from '../Shared/UniversalIngestionPort';
@@ -27,7 +30,18 @@ export default function GeochemModule() {
   const { globalData, rawPayloads,  activeFileName } = useGlobalGeoContext();
   const [activeSample, setActiveSample] = useState<string>("SMP-104");
   const [acidInflow, setAcidInflow] = useState<number>(3.5); // pH value
+  const [acidType, setAcidType] = useState<string>("Aqua Regia");
   const [elementalView, setElementalView] = useState<string>("oxides");
+
+  // New Custom Sample form states
+  const [showCreator, setShowCreator] = useState(false);
+  const [newSmpName, setNewSmpName] = useState("Custom Borehole Sand");
+  const [newSmpDepth, setNewSmpDepth] = useState(620);
+  const [newSmpSiO2, setNewSmpSiO2] = useState(65);
+  const [newSmpAl2O3, setNewSmpAl2O3] = useState(15);
+  const [newSmpFe2O3, setNewSmpFe2O3] = useState(10);
+  const [newSmpMgO, setNewSmpMgO] = useState(5);
+  const [newSmpCaO, setNewSmpCaO] = useState(5);
 
   // Rock core sample elemental composition (oxides & rare earth metals)
   const [samplesData, setSamplesData] = useState<Record<string, {
@@ -69,6 +83,41 @@ export default function GeochemModule() {
       ]
     }
   });
+
+  const handleCreateSample = (e: React.FormEvent) => {
+    e.preventDefault();
+    const id = `SMP-${Math.floor(Math.random() * 899) + 100}`;
+    setSamplesData(prev => ({
+      ...prev,
+      [id]: {
+        name: newSmpName,
+        depth: newSmpDepth,
+        SiO2: newSmpSiO2,
+        Al2O3: newSmpAl2O3,
+        Fe2O3: newSmpFe2O3,
+        MgO: newSmpMgO,
+        CaO: newSmpCaO,
+        alkalies: 4.5,
+        rareEarths: [
+          { element: "Nd", ppm: Math.round(Math.random() * 40 + 10) },
+          { element: "Sm", ppm: Math.round(Math.random() * 10 + 2) },
+          { element: "Eu", ppm: Math.round(Math.random() * 3 + 1) },
+          { element: "Gd", ppm: Math.round(Math.random() * 8 + 2) },
+          { element: "Tb", ppm: Math.round(Math.random() * 2) },
+          { element: "Dy", ppm: Math.round(Math.random() * 6 + 1) }
+        ]
+      }
+    }));
+    setActiveSample(id);
+    setShowCreator(false);
+  };
+
+  // Simulate leach rate based on acid strength (pH) and type
+  const calculatedLeachIndex = useMemo(() => {
+    const baseLeach = (8.0 - acidInflow) * 12.5;
+    const modifier = acidType === "HF" ? 1.35 : acidType === "Aqua Regia" ? 1.2 : acidType === "HCl" ? 0.95 : 0.7;
+    return Math.min(100, Math.max(1, Math.round(baseLeach * modifier)));
+  }, [acidInflow, acidType]);
 
   const presetLog = `# Core Sample Oxide Table
 # SampleID, Depth, SiO2, Al2O3, Fe2O3, MgO, CaO, Alkalies
@@ -145,7 +194,7 @@ SMP-110, 1050, 41.2, 11.5, 16.4, 15.5, 10.4, 3.8`;
         </div>
         <div className="flex items-center gap-2 text-xs bg-black/40 border border-[#333] px-3 py-1.5 rounded text-[#888]">
           <Cpu className="text-[#FF5722]" size={14} />
-          <span className="font-mono">NVIDIA A100 // ACTIVE</span>
+          <span className="font-mono">XRF COMPUTER // ONLINE</span>
         </div>
       </div>
 
@@ -158,9 +207,97 @@ SMP-110, 1050, 41.2, 11.5, 16.4, 15.5, 10.4, 3.8`;
             onParsed={(d) => console.log(d)}
             presetLog={presetLog}
           />
+          
           <div className="geo-card animate-fade-in">
-            <h3 className="text-xs uppercase font-mono font-bold tracking-widest text-[#888] mb-4">Core Core Samples</h3>
-            <div className="space-y-3">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xs uppercase font-mono font-bold tracking-widest text-[#888]">Borehole Core Samples</h3>
+              <button 
+                onClick={() => setShowCreator(!showCreator)}
+                className="flex items-center gap-1 text-[10px] bg-[#FF5722]/20 text-[#FF5722] border border-[#FF5722]/40 px-2 py-0.5 rounded font-mono uppercase font-bold hover:bg-[#FF5722]/30 transition"
+              >
+                {showCreator ? <X size={10} /> : <Plus size={10} />}
+                {showCreator ? "Cancel" : "Add Core"}
+              </button>
+            </div>
+
+            {/* Core Sample Creator Form */}
+            {showCreator && (
+              <form onSubmit={handleCreateSample} className="bg-black/60 border border-[#FF5722]/30 p-3 rounded mb-4 space-y-3 animate-slide-in">
+                <div className="text-[10px] font-mono text-[#FF5722] uppercase font-bold border-b border-[#FF5722]/20 pb-1">Create Core Spec</div>
+                
+                <div className="space-y-2">
+                  <div className="flex flex-col">
+                    <label className="text-[9px] font-mono text-gray-400 uppercase">Core Name</label>
+                    <input 
+                      type="text" 
+                      value={newSmpName} 
+                      onChange={(e) => setNewSmpName(e.target.value)}
+                      className="bg-[#222] border border-[#333] text-white px-2 py-1 text-xs rounded font-mono"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col">
+                      <label className="text-[9px] font-mono text-gray-400 uppercase">Depth (m)</label>
+                      <input 
+                        type="number" 
+                        value={newSmpDepth} 
+                        onChange={(e) => setNewSmpDepth(Number(e.target.value))}
+                        className="bg-[#222] border border-[#333] text-white px-2 py-1 text-xs rounded font-mono"
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-[9px] font-mono text-gray-400 uppercase">Quartz (SiO2 %)</label>
+                      <input 
+                        type="number" 
+                        value={newSmpSiO2} 
+                        onChange={(e) => setNewSmpSiO2(Number(e.target.value))}
+                        className="bg-[#222] border border-[#333] text-white px-2 py-1 text-xs rounded font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1">
+                    <div className="flex flex-col">
+                      <label className="text-[8px] font-mono text-gray-400 uppercase">Al2O3 %</label>
+                      <input 
+                        type="number" 
+                        value={newSmpAl2O3} 
+                        onChange={(e) => setNewSmpAl2O3(Number(e.target.value))}
+                        className="bg-[#222] border border-[#333] text-white px-1.5 py-1 text-[10px] rounded font-mono"
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-[8px] font-mono text-gray-400 uppercase">Fe2O3 %</label>
+                      <input 
+                        type="number" 
+                        value={newSmpFe2O3} 
+                        onChange={(e) => setNewSmpFe2O3(Number(e.target.value))}
+                        className="bg-[#222] border border-[#333] text-white px-1.5 py-1 text-[10px] rounded font-mono"
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-[8px] font-mono text-gray-400 uppercase">MgO %</label>
+                      <input 
+                        type="number" 
+                        value={newSmpMgO} 
+                        onChange={(e) => setNewSmpMgO(Number(e.target.value))}
+                        className="bg-[#222] border border-[#333] text-white px-1.5 py-1 text-[10px] rounded font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button 
+                  type="submit" 
+                  className="w-full bg-[#FF5722] hover:bg-[#FF6E40] text-black font-bold uppercase font-mono py-1.5 rounded text-xs transition"
+                >
+                  Generate Core Sample
+                </button>
+              </form>
+            )}
+
+            <div className="space-y-2 max-h-56 overflow-y-auto scrollbar-thin">
               {Object.keys(samplesData).map((key) => (
                 <button
                   key={key}
@@ -177,13 +314,35 @@ SMP-110, 1050, 41.2, 11.5, 16.4, 15.5, 10.4, 3.8`;
             </div>
           </div>
 
+          {/* ACID REACTION CHAMBER SOLVER */}
           <div className="geo-card block bg-[#111]/40">
-            <h3 className="text-xs uppercase font-mono font-bold tracking-widest text-[#888] mb-4">Acid Digest & Leach Index</h3>
+            <h3 className="text-xs uppercase font-mono font-bold tracking-widest text-[#FF5722] mb-3 flex items-center gap-2">
+              <FlaskConical size={12} />
+              Acid Digest Solver
+            </h3>
+            
             <div className="space-y-4">
+              {/* Solvent Tabs */}
+              <div>
+                <span className="text-[9px] font-mono text-gray-400 uppercase block mb-1.5">Solvent Chemical Digestant</span>
+                <div className="grid grid-cols-4 gap-1">
+                  {["HCl", "HNO3", "Aqua Regia", "HF"].map((acid) => (
+                    <button
+                      key={acid}
+                      type="button"
+                      onClick={() => setAcidType(acid)}
+                      className={`text-[9px] font-mono py-1 rounded border text-center transition ${acidType === acid ? "bg-[#FF5722] text-black border-[#FF5722] font-bold" : "bg-black/40 text-gray-400 border-[#222] hover:border-[#333]"}`}
+                    >
+                      {acid}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <div className="flex justify-between text-xs font-mono text-white mb-1">
-                  <span>Solvent Acid PH</span>
-                  <span className="text-[#FF5722]">pH {acidInflow}</span>
+                  <span>Acid Solution pH</span>
+                  <span className="text-[#FF5722] font-bold">pH {acidInflow}</span>
                 </div>
                 <input 
                   type="range" 
@@ -196,18 +355,20 @@ SMP-110, 1050, 41.2, 11.5, 16.4, 15.5, 10.4, 3.8`;
                 />
               </div>
 
-              <div className="space-y-2 font-mono text-[11px] text-[#888]">
+              <div className="space-y-1.5 font-mono text-[10px] text-[#888] bg-black/40 border border-[#222] p-2.5 rounded">
                 <div className="flex justify-between border-b border-[#222] pb-1">
-                  <span>OXIDATION STATE</span>
-                  <span>Fe2+ / Fe3+ BUFFER</span>
+                  <span>SOLVENT:</span>
+                  <span className="text-white font-bold">{acidType} Buffer</span>
                 </div>
                 <div className="flex justify-between border-b border-[#222] pb-1">
-                  <span>SOLUBILITY METRIC</span>
-                  <span className="text-green-500">OPTIMAL RANGE</span>
+                  <span>SOLUBILITY YIELD:</span>
+                  <span className="text-green-400 font-bold">{calculatedLeachIndex}%</span>
                 </div>
-                <div className="flex justify-between pb-1">
-                  <span>CURRENT LIQUID LATENCY</span>
-                  <span>14.2 µS/cm</span>
+                <div className="flex justify-between">
+                  <span>DESORPTION POTENTIAL:</span>
+                  <span className={calculatedLeachIndex > 65 ? "text-red-400 animate-pulse font-bold" : "text-gray-400"}>
+                    {calculatedLeachIndex > 80 ? "CRITICAL" : calculatedLeachIndex > 50 ? "MODERATE" : "STABLE"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -262,15 +423,53 @@ SMP-110, 1050, 41.2, 11.5, 16.4, 15.5, 10.4, 3.8`;
                 {getSubsurfaceClassification()}
               </div>
               <div className="grid grid-cols-3 gap-1 mt-3 text-[10px] font-mono text-center">
-                <div className="bg-black py-1 rounded">Q: {qPct.toFixed(1)}%</div>
-                <div className="bg-black py-1 rounded">F: {fPct.toFixed(1)}%</div>
-                <div className="bg-black py-1 rounded">L: {lPct.toFixed(1)}%</div>
+                <div className="bg-black py-1 rounded text-orange-400">Q: {qPct.toFixed(1)}%</div>
+                <div className="bg-black py-1 rounded text-blue-400">F: {fPct.toFixed(1)}%</div>
+                <div className="bg-black py-1 rounded text-amber-500">L: {lPct.toFixed(1)}%</div>
               </div>
             </div>
           </div>
 
-          {/* Rare earth chromatography graph profile */}
+          {/* RARE EARTHS CHROMATOGRAPHY GRAPH PROFILE */}
           <div className="geo-card flex flex-col justify-between">
+            <div>
+              <div className="flex justify-between items-center mb-2 border-b border-[#222] pb-2">
+                <h3 className="text-xs uppercase font-mono font-bold tracking-widest text-orange-500">
+                  Rare Earth Mass Spectrogram
+                </h3>
+                <span className="text-[9px] text-[#555] font-mono">ICP-MS PROFILE</span>
+              </div>
+              <p className="text-[11px] text-[#888] leading-tight mb-3">
+                Trace element rare-earth distribution in ppm for active specimen: <span className="text-white font-bold">{activeSample}</span>.
+              </p>
+            </div>
+
+            {/* Recharts BarChart plotting Nd, Sm, Eu, Gd, Tb, Dy in ppm */}
+            <div className="h-40 w-full bg-black/30 rounded border border-[#222]/60 p-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={currentData.rareEarths} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#222" />
+                  <XAxis dataKey="element" stroke="#555" fontSize={9} tickLine={false} />
+                  <YAxis stroke="#555" fontSize={9} tickLine={false} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: "#111", border: "1px solid #333" }} 
+                    labelStyle={{ color: "#FF5722", fontFamily: "monospace", fontSize: "10px" }}
+                    itemStyle={{ color: "#fff", fontFamily: "monospace", fontSize: "10px" }}
+                  />
+                  <Bar dataKey="ppm" fill="#FF5722" radius={[2, 2, 0, 0]} maxBarSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-1 text-[9px] font-mono text-center text-gray-500 bg-black/20 p-1.5 rounded">
+              <div>∑ REE: {currentData.rareEarths.reduce((acc, c) => acc + c.ppm, 0)} ppm</div>
+              <div>Light REE: {currentData.rareEarths.slice(0, 3).reduce((acc, c) => acc + c.ppm, 0)} ppm</div>
+              <div>Heavy REE: {currentData.rareEarths.slice(3).reduce((acc, c) => acc + c.ppm, 0)} ppm</div>
+            </div>
+          </div>
+
+          {/* Standard Geochem Line Graph Panel */}
+          <div className="col-span-2 geo-card flex flex-col justify-between">
             <div>
               <div className="flex justify-between items-center mb-4 border-b border-[#222] pb-2">
                 <h3 className="text-xs uppercase font-mono font-bold tracking-widest text-[#888]">pH Degradation vs Sulfate/Chloride Concentration</h3>

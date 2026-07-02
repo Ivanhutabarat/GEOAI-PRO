@@ -4,7 +4,7 @@ import { forceMapData, DebugDump } from '../../../../lib/forceRenderMapper';
 import { generateReport } from '../../utils/reportGenerator';
 import { useAppContext } from '../../context/AppContext';
 // src/components/Modules/CentralCommand.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Activity, Cpu, Server, Database, CheckCircle2, ShieldAlert, Key, RotateCcw, FileText, X, AlertCircle, Sliders, Settings } from "lucide-react";
 import { useGlobalGeoContext } from "../../context/GlobalGeoContext";
 import { motion } from "motion/react";
@@ -14,6 +14,7 @@ import { useApiMonitorStore } from "../../store/ApiMonitorStore";
 import { apiQueueManager } from "../../hooks/useApiQueue";
 import { validateIdentity } from "../../lib/identityValidator";
 import { BRANDING } from "../../constants/BrandingConstants";
+import SecurityAndWhatsAppPanel from "./SecurityAndWhatsAppPanel";
 
 export default function CentralCommand() {
   const { systemLogs, globalData, clearLogs, addLog, activeFileName, rawPayloads } = useGlobalGeoContext();
@@ -632,6 +633,168 @@ export default function CentralCommand() {
     printWindow.document.close();
   };
 
+  // Emergency Siren & Drilling Simulation Sound State
+  const [emergencyActive, setEmergencyActive] = useState(false);
+  const sirenOscRef = useRef<OscillatorNode | null>(null);
+  const sirenGainRef = useRef<GainNode | null>(null);
+  const sirenIntervalRef = useRef<any>(null);
+
+  const [drillActive, setDrillActive] = useState(false);
+  const [drillDepth, setDrillDepth] = useState(1450);
+  const [drillSpeed, setDrillSpeed] = useState(1); // 0, 1, 2
+  const drillAudioOscRef = useRef<OscillatorNode | null>(null);
+  const drillAudioGainRef = useRef<GainNode | null>(null);
+
+  const stopSiren = () => {
+    if (sirenIntervalRef.current) {
+      clearInterval(sirenIntervalRef.current);
+      sirenIntervalRef.current = null;
+    }
+    if (sirenOscRef.current) {
+      try { sirenOscRef.current.stop(); } catch (e) {}
+      sirenOscRef.current = null;
+    }
+    if (sirenGainRef.current) {
+      try { sirenGainRef.current.disconnect(); } catch (e) {}
+      sirenGainRef.current = null;
+    }
+  };
+
+  const toggleSiren = () => {
+    if (emergencyActive) {
+      setEmergencyActive(false);
+      stopSiren();
+      addLog({ type: "INFO", source: "SAFETY", message: "CRITICAL ALARM DEACTIVATED: Telemetry restored to nominal bounds." });
+    } else {
+      setEmergencyActive(true);
+      addLog({ type: "WARN", source: "ALERT", message: "⚠️ CRITICAL DRILL ACTIVE! Pulsing alarm siren enabled." });
+      
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        const ctx = new AudioContextClass();
+        
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+        
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(450, ctx.currentTime);
+        
+        gain.gain.setValueAtTime(0.015, ctx.currentTime);
+        
+        // Pulse oscillation frequency
+        let goingUp = true;
+        sirenIntervalRef.current = setInterval(() => {
+          if (goingUp) {
+            osc.frequency.exponentialRampToValueAtTime(750, ctx.currentTime + 0.4);
+          } else {
+            osc.frequency.exponentialRampToValueAtTime(350, ctx.currentTime + 0.4);
+          }
+          goingUp = !goingUp;
+        }, 500);
+
+        filter.type = 'lowpass';
+        filter.frequency.value = 1000;
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        
+        sirenOscRef.current = osc;
+        sirenGainRef.current = gain;
+      } catch (e) {
+        console.error("Failed to start siren:", e);
+      }
+    }
+  };
+
+  const updateDrillingSound = (active: boolean, speedMultiplier: number) => {
+    if (!active) {
+      if (drillAudioOscRef.current) {
+        try { drillAudioOscRef.current.stop(); } catch (e) {}
+        drillAudioOscRef.current = null;
+      }
+      if (drillAudioGainRef.current) {
+        try { drillAudioGainRef.current.disconnect(); } catch (e) {}
+        drillAudioGainRef.current = null;
+      }
+      return;
+    }
+
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new AudioContextClass();
+      
+      if (!drillAudioOscRef.current) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(55 * speedMultiplier, ctx.currentTime);
+        
+        // LFO rotation modulation
+        const lfo = ctx.createOscillator();
+        const lfoGain = ctx.createGain();
+        lfo.frequency.value = 6 * speedMultiplier;
+        lfoGain.gain.value = 15;
+        lfo.connect(lfoGain);
+        lfoGain.connect(osc.frequency);
+        lfo.start();
+
+        filter.type = 'lowpass';
+        filter.frequency.value = 250;
+        gain.gain.setValueAtTime(0.02, ctx.currentTime);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+
+        drillAudioOscRef.current = osc;
+        drillAudioGainRef.current = gain;
+      } else {
+        drillAudioOscRef.current.frequency.setValueAtTime(55 * speedMultiplier, ctx.currentTime);
+      }
+    } catch (e) {
+      console.warn("Drill audio failure:", e);
+    }
+  };
+
+  useEffect(() => {
+    let drillInterval: any = null;
+    if (drillActive && drillSpeed > 0) {
+      updateDrillingSound(true, drillSpeed);
+      drillInterval = setInterval(() => {
+        setDrillDepth(prev => {
+          const next = prev + (0.4 * drillSpeed);
+          if (Math.floor(next) % 20 === 0) {
+            addLog({
+              type: "INFO",
+              source: "DRILLING",
+              message: `Borehole depth progressed to ${next.toFixed(1)}m. Lithology sensor reports hard geological boundaries.`
+            });
+          }
+          return next;
+        });
+      }, 1000);
+    } else {
+      updateDrillingSound(false, 0);
+    }
+
+    return () => {
+      if (drillInterval) clearInterval(drillInterval);
+      updateDrillingSound(false, 0);
+    };
+  }, [drillActive, drillSpeed]);
+
+  useEffect(() => {
+    return () => {
+      stopSiren();
+    };
+  }, []);
+
   const [telemetry, setTelemetry] = useState({
     cpuUsage: Math.random() * 20 + 30,
     memoryInfo: 14.2,
@@ -687,7 +850,23 @@ Output a highly concise 3-sentence expert explanation.`;
   }, []);
 
   return (
-    <div className="flex flex-col h-full text-white bg-[#0A0A0B] p-6 space-y-6 overflow-y-auto">
+    <div className={`space-y-6 transition-all duration-500 ${emergencyActive ? "p-4 bg-red-950/10 border border-red-500/30 rounded-xl shadow-[0_0_20px_rgba(239,68,68,0.1)]" : ""}`}>
+      {emergencyActive && (
+        <div className="bg-red-500/15 border border-red-500/30 text-red-500 px-4 py-3 rounded-lg flex items-center justify-between font-mono text-xs uppercase tracking-wider animate-pulse select-none">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="text-red-500 animate-bounce" size={16} />
+            <strong>[ALERT SIRENE AKTIF] SIRENE GEOLOGIS DIKUNCI: TERJADI DEVIASI TINGGI PADA SUMUR BOR</strong>
+          </div>
+          <button
+            type="button"
+            onClick={toggleSiren}
+            className="bg-red-500/20 hover:bg-red-500/35 border border-red-500 text-red-500 px-3 py-1 rounded text-[10px] font-bold transition-all cursor-pointer"
+          >
+            MATIKAN SIRENE
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-2 border-b border-[#222] pb-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight uppercase italic text-white flex items-center gap-3">
@@ -740,9 +919,9 @@ Output a highly concise 3-sentence expert explanation.`;
       </div>
 
       {/* GEOPHYSICAL WORKSTATION VISUALIZER */}
-      <div className="grid grid-cols-1 gap-6" id="final-boss-controls">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" id="final-boss-controls">
         {/* Expanded complete visualization/output panel */}
-        <div className="bg-[#111] border border-zinc-850 rounded-xl p-6 shadow-xl flex flex-col justify-between min-h-[220px]">
+        <div className="lg:col-span-2 bg-[#111] border border-zinc-850 rounded-xl p-6 shadow-xl flex flex-col justify-between min-h-[240px]">
           {showRoiChart ? (
             <div className="flex-1 flex flex-col justify-between h-full" id="drill-roi-chart">
               <div className="flex justify-between items-center mb-3 border-b border-[#222] pb-2">
@@ -808,6 +987,112 @@ Output a highly concise 3-sentence expert explanation.`;
               </p>
             </div>
           )}
+        </div>
+
+        {/* Drilling Simulator Panel */}
+        <div className="lg:col-span-1 bg-[#111] border border-zinc-850 rounded-xl p-6 shadow-xl flex flex-col justify-between min-h-[240px] font-mono text-[11px]">
+          <div className="flex justify-between items-center border-b border-[#222] pb-2 mb-3">
+            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full bg-emerald-400 ${drillActive ? "animate-ping" : ""}`} />
+              Borehole Active Driller
+            </span>
+            <span className="text-[9px] text-zinc-500">MUD LOG SIMULATION</span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 text-center mb-3">
+            <div className="bg-black/30 border border-[#222] p-2 rounded">
+              <div className="text-[9px] text-zinc-500 uppercase">DEPTH</div>
+              <div className="text-[13px] font-bold text-white mt-1">{drillDepth.toFixed(1)}m</div>
+            </div>
+            <div className="bg-black/30 border border-[#222] p-2 rounded">
+              <div className="text-[9px] text-zinc-500 uppercase">ROTATION</div>
+              <div className="text-[13px] font-bold text-[#00E5FF] mt-1">{drillActive ? (drillSpeed === 1 ? '60 RPM' : '120 RPM') : '0 RPM'}</div>
+            </div>
+            <div className="bg-black/30 border border-[#222] p-2 rounded">
+              <div className="text-[9px] text-zinc-500 uppercase">PRESSURE</div>
+              <div className="text-[13px] font-bold text-amber-500 mt-1">{drillActive ? (3500 + Math.sin(drillDepth) * 150).toFixed(0) : '0'} PSI</div>
+            </div>
+          </div>
+
+          {/* Visualization: SVG with drilling anim */}
+          <div className="flex-1 bg-black/40 border border-[#222] rounded-lg p-2.5 flex relative overflow-hidden h-[110px] items-stretch gap-3">
+            {/* SVG Soil Layers and Drill Bit */}
+            <svg width="45" height="100%" className="shrink-0 select-none">
+              {/* Layers */}
+              <rect x="0" y="0" width="45" height="25" fill="#f59e0b" fillOpacity="0.15" /> {/* Sandstone */}
+              <rect x="0" y="25" width="45" height="40" fill="#3b82f6" fillOpacity="0.1" /> {/* Limestone/Shale */}
+              <rect x="0" y="65" width="45" height="35" fill="#ef4444" fillOpacity="0.1" /> {/* Basalt */}
+
+              {/* Drill pipe */}
+              <rect x="19" y="0" width="7" height="75" fill="#444" />
+              {/* Spinning/vibrating bit head */}
+              <g transform={`translate(${19 + (drillActive ? Math.sin(Date.now() / 40) * 1.5 : 0)}, 72)`}>
+                <polygon points="0,0 7,0 3.5,8" fill="#FF5722" />
+                {drillActive && (
+                  <ellipse cx="3.5" cy="1" rx="5" ry="1.5" fill="#ff7043" opacity="0.8">
+                    <animate attributeName="ry" values="0.5;2;0.5" dur="0.2s" repeatCount="indefinite" />
+                  </ellipse>
+                )}
+              </g>
+
+              {/* Target mark */}
+              <line x1="0" y1="85" x2="45" y2="85" stroke="#00E5FF" strokeDasharray="2,2" strokeWidth="1" />
+            </svg>
+
+            <div className="flex-1 flex flex-col justify-between text-[10px] leading-relaxed text-zinc-400">
+              <div>
+                <span className="text-white font-bold block mb-1">FORMATION LITHOLOGY:</span>
+                {drillDepth < 1500 ? (
+                  <span className="text-amber-300">✦ Sandstone: Medium Porosity matrix. High drilling rate coefficient.</span>
+                ) : drillDepth < 1700 ? (
+                  <span className="text-blue-300">✦ Shale/Limestone: Dense formation. Hydration swelling risk moderate.</span>
+                ) : (
+                  <span className="text-red-300">✦ Basalt basement: Ultra hard granite intrusion. High friction drill wear.</span>
+                )}
+              </div>
+              
+              <div className="flex gap-1.5 pt-2 border-t border-[#222]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDrillActive(false);
+                    addLog({ type: 'WARN', source: 'DRILL', message: 'Borehole Driller manually halted.' });
+                  }}
+                  className={`px-2 py-1 rounded text-[9px] font-bold uppercase border cursor-pointer ${
+                    !drillActive ? "bg-red-500/10 border-red-500/30 text-red-500" : "bg-black border-zinc-800 text-zinc-500 hover:text-white"
+                  }`}
+                >
+                  HALT
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDrillActive(true);
+                    setDrillSpeed(1);
+                    addLog({ type: 'INFO', source: 'DRILL', message: 'Borehole Driller set to 1X Normal Speed.' });
+                  }}
+                  className={`px-2 py-1 rounded text-[9px] font-bold uppercase border cursor-pointer ${
+                    drillActive && drillSpeed === 1 ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-black border-zinc-800 text-zinc-500 hover:text-white"
+                  }`}
+                >
+                  1X
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDrillActive(true);
+                    setDrillSpeed(2);
+                    addLog({ type: 'INFO', source: 'DRILL', message: 'Borehole Driller set to 2X High Penetration Speed.' });
+                  }}
+                  className={`px-2 py-1 rounded text-[9px] font-bold uppercase border cursor-pointer ${
+                    drillActive && drillSpeed === 2 ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-400" : "bg-black border-zinc-800 text-zinc-500 hover:text-white"
+                  }`}
+                >
+                  2X
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -909,6 +1194,44 @@ Output a highly concise 3-sentence expert explanation.`;
                   >
                     <span>✦ Highlight Parameter Drift</span>
                     <span className={`w-1.5 h-1.5 rounded-full ${highlightDrift ? "bg-[#FF5722] shadow-[0_0_6px_rgba(255,87,34,0.8)]" : "bg-neutral-800"}`} />
+                  </button>
+
+                  {/* Button 5: Emergency Siren Alarm */}
+                  <button
+                    type="button"
+                    onClick={toggleSiren}
+                    className={`flex items-center justify-between px-3.5 py-2 rounded-lg text-[10px] font-mono font-bold uppercase transition-all duration-200 border cursor-pointer ${
+                      emergencyActive 
+                        ? "bg-red-500/15 border-red-500 text-red-500 shadow-[0_0_8px_rgba(239,68,68,0.25)] animate-pulse" 
+                        : "bg-black/30 border-zinc-900 text-zinc-400 hover:text-white hover:border-zinc-800"
+                    }`}
+                    id="btn-emergency-siren"
+                  >
+                    <span>🚨 Trigger Sirene Bahaya</span>
+                    <span className={`w-1.5 h-1.5 rounded-full ${emergencyActive ? "bg-red-500 shadow-[0_0_6px_#ef4444]" : "bg-neutral-800"}`} />
+                  </button>
+
+                  {/* Button 6: Borehole Active Driller */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = !drillActive;
+                      setDrillActive(next);
+                      addLog({
+                        type: next ? "INFO" : "WARN",
+                        source: "DRILL_SIM",
+                        message: next ? "Active drilling sequence initialized. Hum frequency loaded." : "Drilling sequence suspended."
+                      });
+                    }}
+                    className={`flex items-center justify-between px-3.5 py-2 rounded-lg text-[10px] font-mono font-bold uppercase transition-all duration-200 border cursor-pointer ${
+                      drillActive 
+                        ? "bg-emerald-500/15 border-emerald-500 text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.25)]" 
+                        : "bg-black/30 border-zinc-900 text-zinc-400 hover:text-white hover:border-zinc-800"
+                    }`}
+                    id="btn-active-drill-sim"
+                  >
+                    <span>⚙️ Run Borehole Driller</span>
+                    <span className={`w-1.5 h-1.5 rounded-full ${drillActive ? "bg-emerald-400 shadow-[0_0_6px_#10b981]" : "bg-neutral-800"}`} />
                   </button>
                 </div>
               </div>

@@ -6,20 +6,15 @@ export default defineConfig({
   base: '/',
   build: { 
     outDir: 'dist',
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'vendor-3d-geospatial': ['three', '@react-three/fiber', '@react-three/drei'],
-          'vendor-pdf-persistence': ['jspdf'],
-          'vendor-lucide': ['lucide-react']
-        }
-      }
-    }
+    minify: true
   },
   plugins: [
     react(),
     tailwindcss()
   ],
+  define: {
+    'process.env.GOOGLE_MAPS_PLATFORM_KEY': JSON.stringify(process.env.GOOGLE_MAPS_PLATFORM_KEY || '')
+  },
   optimizeDeps: {
     include: [
       'react', 'react-dom', 'lucide-react', 'recharts', 'framer-motion',

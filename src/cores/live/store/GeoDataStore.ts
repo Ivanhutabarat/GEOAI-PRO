@@ -15,17 +15,31 @@ export interface LithologyLayer {
   displacement: number; // For fault logic
 }
 
+export interface DrillHole {
+  id: string;
+  name: string;
+  x: number;
+  z: number;
+  depth: number;
+  status: 'drilling' | 'completed';
+}
+
 interface GeoDataState {
   points: GeoDataPoint[];
   layers: LithologyLayer[];
   faultActive: boolean;
   faultPositionX: number;
+  selectedPoint: GeoDataPoint | null;
+  drillHoles: DrillHole[];
   setPoints: (points: GeoDataPoint[]) => void;
   addPoint: (point: GeoDataPoint) => void;
   clearPoints: () => void;
   setFaultActive: (active: boolean) => void;
   setFaultPositionX: (x: number) => void;
   setLayers: (layers: LithologyLayer[]) => void;
+  setSelectedPoint: (point: GeoDataPoint | null) => void;
+  setDrillHoles: (holes: DrillHole[]) => void;
+  addDrillHole: (hole: DrillHole) => void;
 }
 
 export const useGeoDataStore = create<GeoDataState>((set) => ({
@@ -37,16 +51,24 @@ export const useGeoDataStore = create<GeoDataState>((set) => ({
     { id: 'p5', position: [4, -2, -3], color: '#ff44ff', type: 'em' },
   ],
   layers: [
-    { name: 'Yellow Sandstone', color: '#d4c919', depthStart: 0, depthEnd: -15, displacement: 0 },
-    { name: 'Orange Limestone', color: '#c93c1e', depthStart: -15, depthEnd: -35, displacement: 0 },
-    { name: 'Blue Basement', color: '#1e3cc9', depthStart: -35, depthEnd: -60, displacement: 0 },
+    { name: 'Clay & Ocean Deposits', color: '#3b82f6', depthStart: 0, depthEnd: -10, displacement: 0 },
+    { name: 'Green Shale Stratum', color: '#10b981', depthStart: -10, depthEnd: -20, displacement: 0 },
+    { name: 'Yellow Sandstone', color: '#f59e0b', depthStart: -20, depthEnd: -30, displacement: 0 },
+    { name: 'Orange Limestone Silts', color: '#f97316', depthStart: -30, depthEnd: -40, displacement: 0 },
+    { name: 'Crimson Basalt Fold', color: '#dc2626', depthStart: -40, depthEnd: -50, displacement: 0 },
+    { name: 'Purple Metamorphic Basement', color: '#7c3aed', depthStart: -50, depthEnd: -60, displacement: 0 },
   ],
   faultActive: true,
   faultPositionX: 0,
+  selectedPoint: null,
+  drillHoles: [],
   setPoints: (points) => set({ points }),
   addPoint: (point) => set((state) => ({ points: [...state.points, point] })),
   clearPoints: () => set({ points: [] }),
   setFaultActive: (active) => set({ faultActive: active }),
   setFaultPositionX: (x) => set({ faultPositionX: x }),
   setLayers: (layers) => set({ layers }),
+  setSelectedPoint: (point) => set({ selectedPoint: point }),
+  setDrillHoles: (holes) => set({ drillHoles: holes }),
+  addDrillHole: (hole) => set((state) => ({ drillHoles: [...state.drillHoles, hole] })),
 }));

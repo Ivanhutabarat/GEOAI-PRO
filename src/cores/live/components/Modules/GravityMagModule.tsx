@@ -2,7 +2,7 @@ import { processIncomingData } from '../Shared/SwarmRoom';
 import { forceMapData, DebugDump } from '../../../../lib/forceRenderMapper';
 import { Fallback3D } from '../Shared/Fallback3D';
 import { useAppContext } from '../../context/AppContext';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApiMonitorStore } from '../../store/ApiMonitorStore';
 import { 
   Compass, 
@@ -93,7 +93,32 @@ export default function GravityMagModule() {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const stationData = (globalData.gravityData && globalData.gravityData.length > 0) ? globalData.gravityData : gravityMagneticPayload; // ACTIVE MATHEMATICAL GENERATOR
+  const stationData = useMemo(() => {
+    const rawData = (globalData.gravityData && globalData.gravityData.length > 0) ? globalData.gravityData : gravityMagneticPayload;
+    
+    return rawData.map((stn: any, idx: number) => {
+      // Scale based on Depth Slice Filter
+      const depthScale = depthFilter / 2500;
+      
+      // Calculate dynamic gravity & anomaly based on the sliders
+      const baseGravity = stn.observed_gravity !== undefined ? stn.observed_gravity : (978030 + idx * 5.2);
+      const baseBouguer = stn.bouguer_anomaly !== undefined ? stn.bouguer_anomaly : (12 + idx * 3.8);
+      
+      const noise = Math.sin(idx * 1.5) * noiseLevel * 0.45;
+      const depthAdjustment = Math.cos(idx * 0.8) * 6.5 * depthScale;
+      
+      return {
+        ...stn,
+        station: stn.station_id || stn.station || `STN-${idx + 1}`,
+        observed_gravity: parseFloat((baseGravity + noise + depthAdjustment).toFixed(2)),
+        bouguerAnomaly: parseFloat((baseBouguer + noise + depthAdjustment).toFixed(2)),
+        elevation: stn.elevation !== undefined ? stn.elevation : (120 + Math.sin(idx * 0.9) * 35),
+        x: stn.x !== undefined ? stn.x : idx * 12,
+        y: stn.y !== undefined ? stn.y : (120 + Math.sin(idx * 0.9) * 35),
+        anomaly: parseFloat(( (stn.anomaly !== undefined ? stn.anomaly : (25 + Math.sin(idx * 2) * 40)) * depthScale + noise).toFixed(2))
+      };
+    });
+  }, [globalData.gravityData, depthFilter, noiseLevel]);
 
   const presetLog = gravityMagneticPayload.slice(0, 15).map(d => `${d.station_id},${d.observed_gravity},${d.bouguer_anomaly}`).join("\n");
 

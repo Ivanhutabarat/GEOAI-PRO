@@ -47,6 +47,35 @@ export default function SpatialTwin() {
   const setPoints = useGeoDataStore(state => state.setPoints);
   const setLayers = useGeoDataStore(state => state.setLayers);
 
+  // New Interactive Simulation & Probing state from Zustand Store
+  const selectedPoint = useGeoDataStore(state => state.selectedPoint);
+  const setSelectedPoint = useGeoDataStore(state => state.setSelectedPoint);
+  const drillHoles = useGeoDataStore(state => state.drillHoles);
+  const addDrillHole = useGeoDataStore(state => state.addDrillHole);
+
+  // Drill simulator local form inputs
+  const [drillX, setDrillX] = useState<number>(0);
+  const [drillZ, setDrillZ] = useState<number>(0);
+  const [drillWellName, setDrillWellName] = useState<string>("WELL-KB04");
+
+  const handleStartDrilling = () => {
+    const id = `borehole-${Date.now()}`;
+    const newHole = {
+      id,
+      name: drillWellName || `WELL-${Math.floor(Math.random() * 900) + 100}`,
+      x: drillX,
+      z: drillZ,
+      depth: 0.1,
+      status: 'drilling' as const
+    };
+    addDrillHole(newHole);
+    
+    // Cycle Well Name Preset for the next simulation
+    const randomPrefix = String.fromCharCode(65 + Math.floor(Math.random() * 26)) + String.fromCharCode(65 + Math.floor(Math.random() * 26));
+    const randomNum = Math.floor(Math.random() * 90) + 10;
+    setDrillWellName(`WELL-${randomPrefix}${randomNum}`);
+  };
+
   // Keep track of the processing timeout
   const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [eventSource, setEventSource] = useState<HTMLDivElement | null>(null);
@@ -420,7 +449,139 @@ export default function SpatialTwin() {
         <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-[#ff5722] font-mono text-xs">Booting 3D Render Engine...</div>}>
           <SpatialTwinEngine sliceZ={sliceZ} activePayload={activePayload} eventSource={eventSource} />
         </Suspense>
-        
+
+        {/* Selected Point Coordinate Probe Details Card (Top-Left Floating Glassmorphism) */}
+        {selectedPoint && (
+          <div className="absolute top-6 left-6 z-10 bg-[#0d0d10]/95 backdrop-blur-md border border-[#333] p-4 rounded-lg shadow-2xl font-mono text-xs w-[260px] text-left animate-fade-in">
+            <div className="flex justify-between items-center mb-2 pb-1 border-b border-[#222]">
+              <span className="text-[#00E5FF] font-bold text-[10px] uppercase tracking-widest flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00E5FF] animate-pulse"></span>
+                COORDINATE PROBE
+              </span>
+              <button 
+                onClick={() => setSelectedPoint(null)}
+                className="text-[#666] hover:text-white transition-colors focus:outline-none"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-1.5 text-[10px]">
+              <div className="flex justify-between">
+                <span className="text-gray-500 uppercase">Probing Array:</span>
+                <span className="text-white font-bold uppercase">{selectedPoint.type}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 uppercase">Feature ID:</span>
+                <span className="text-[#aaa] font-bold">[{selectedPoint.id.substring(0, 8)}]</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 uppercase">Easting (X):</span>
+                <span className="text-white font-bold">{selectedPoint.position[0].toFixed(2)}m</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 uppercase">Elevation (Y):</span>
+                <span className="text-white font-bold">{selectedPoint.position[1].toFixed(2)}m</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500 uppercase">Northing (Z):</span>
+                <span className="text-white font-bold">{selectedPoint.position[2].toFixed(2)}m</span>
+              </div>
+              
+              <div className="mt-3 pt-2 border-t border-[#222]">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400 font-bold text-[9px] uppercase tracking-widest">Intercept Rock:</span>
+                  <span className="text-[#FF5722] font-black text-[9px] uppercase tracking-wider">
+                    {selectedPoint.position[1] > 2 
+                      ? "Porous Sandstone" 
+                      : selectedPoint.position[1] > 0.5 
+                        ? "Green Shale Barrier" 
+                        : selectedPoint.position[1] > -1.5 
+                          ? "Limestone Silts" 
+                          : "Granitic Basement"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Drill Simulator Command Console Panel (Top-Right Floating HUD) */}
+        <div className="absolute top-6 right-6 z-10 bg-[#0d0d10]/95 backdrop-blur-md border border-[#333] p-4 rounded-lg shadow-2xl font-mono text-xs w-[280px] text-left">
+          <div className="font-bold text-[#FF5722] text-[10px] uppercase tracking-widest mb-3 border-b border-[#222] pb-2 flex justify-between items-center">
+            <span>Rotary Drill Simulator</span>
+            <span className="text-[#00E5FF]">ACTIVE HUD</span>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <div className="flex justify-between mb-1 text-[9px] text-gray-400">
+                <span>Easting coordinate (X):</span>
+                <span className="text-[#00E5FF] font-bold">{drillX.toFixed(1)}m</span>
+              </div>
+              <input 
+                type="range" min="-7" max="7" step="0.1"
+                value={drillX} onChange={(e) => setDrillX(parseFloat(e.target.value))}
+                className="w-full accent-[#FF5722] bg-[#222] h-1 rounded-full appearance-none outline-none cursor-pointer"
+              />
+            </div>
+
+            <div>
+              <div className="flex justify-between mb-1 text-[9px] text-gray-400">
+                <span>Northing coordinate (Z):</span>
+                <span className="text-[#00E5FF] font-bold">{drillZ.toFixed(1)}m</span>
+              </div>
+              <input 
+                type="range" min="-7" max="7" step="0.1"
+                value={drillZ} onChange={(e) => setDrillZ(parseFloat(e.target.value))}
+                className="w-full accent-[#FF5722] bg-[#222] h-1 rounded-full appearance-none outline-none cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-gray-500 uppercase">Well Label:</span>
+              <input 
+                type="text" 
+                value={drillWellName} 
+                onChange={(e) => setDrillWellName(e.target.value)}
+                className="bg-[#18181c] border border-[#222] px-2 py-1 text-[10px] text-white font-mono rounded w-full focus:outline-none focus:border-[#FF5722]"
+              />
+            </div>
+
+            <button
+              onClick={handleStartDrilling}
+              className="w-full py-2 bg-gradient-to-r from-[#FF5722] to-[#ff3300] text-black font-extrabold tracking-widest text-[9px] font-mono rounded shadow-lg hover:brightness-110 transition-all flex items-center justify-center gap-1 cursor-pointer focus:outline-none"
+            >
+              ⚡ DISPATCH ROTARY DRILL
+            </button>
+          </div>
+
+          {/* List of drilled wells */}
+          <div className="mt-4 pt-3 border-t border-[#222]">
+            <span className="text-[9px] text-[#888] uppercase tracking-widest block font-bold mb-2">Borehole Logs ({drillHoles.length})</span>
+            {drillHoles.length === 0 ? (
+              <span className="text-[9px] text-[#555] italic">No active boreholes simulated.</span>
+            ) : (
+              <div className="space-y-2 max-h-[140px] overflow-y-auto custom-scrollbar pr-1">
+                {drillHoles.map((hole) => (
+                  <div key={hole.id} className="p-2 bg-[#121215] border border-[#222] rounded flex flex-col gap-1.5">
+                    <div className="flex justify-between items-center text-[9px]">
+                      <span className="text-white font-black">{hole.name}</span>
+                      <span className={`text-[8px] font-bold uppercase ${hole.status === 'drilling' ? 'text-yellow-400 animate-pulse' : 'text-emerald-400'}`}>
+                        {hole.status}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-[8px] text-gray-500">
+                      <span>X={hole.x.toFixed(1)}, Z={hole.z.toFixed(1)}</span>
+                      <span className="text-[#FF5722] font-semibold">T: -60m</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Continuous Color Scale Legend */}
         <div className="absolute bottom-6 left-6 pointer-events-none z-10">
           <div className="bg-[#111112]/90 backdrop-blur-md border border-[#333] p-4 rounded-lg shadow-2xl font-mono text-xs min-w-[240px]">
@@ -442,7 +603,7 @@ export default function SpatialTwin() {
              </div>
 
              <div className="mt-4 pt-3 border-t border-[#222]">
-                <div className="w-full h-1.5 rounded-full bg-gradient-to-r" style={{ backgroundImage: `linear-gradient(to right, ${layers[0].color}, ${layers[1].color}, ${layers[2].color})` }}></div>
+                <div className="w-full h-1.5 rounded-full bg-gradient-to-r" style={{ backgroundImage: `linear-gradient(to right, ${layers[0]?.color || '#3b82f6'}, ${layers[1]?.color || '#10b981'}, ${layers[layers.length - 1]?.color || '#7c3aed'})` }}></div>
              </div>
 
              <div className="mt-3 flex items-center justify-between text-[8px] text-[#555] uppercase tracking-widest font-bold">

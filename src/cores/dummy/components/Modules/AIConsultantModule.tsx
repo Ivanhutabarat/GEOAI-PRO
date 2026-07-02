@@ -18,6 +18,27 @@ export default function MasterGeoSynthesizer() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem("geoai_consultant_chat");
+      if (saved) {
+        setChatHistory(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.warn("Could not load persistent consultant chat:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (chatHistory.length > 0) {
+        localStorage.setItem("geoai_consultant_chat", JSON.stringify(chatHistory));
+      }
+    } catch (e) {
+      console.warn("Could not save persistent consultant chat:", e);
+    }
+  }, [chatHistory]);
+
+  useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }

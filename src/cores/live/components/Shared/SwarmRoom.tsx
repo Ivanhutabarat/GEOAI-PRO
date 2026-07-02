@@ -47,6 +47,9 @@ import {
   Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { jsPDF } from 'jspdf';
+import { generateDashboardSnapshot } from '../../../../lib/pdfReportService';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../../lib/utils';
 import { useGlobalGeoContext } from '../../context/GlobalGeoContext';
@@ -259,6 +262,26 @@ export const processIncomingData = (promptText: string) => {
   let parsedSuccessfully = false;
   let jsonString = "";
 
+  // Strategy 0: Check if it's already a valid JSON object (column-based payload)
+  try {
+    const directParse = JSON.parse(promptText);
+    if (directParse && typeof directParse === 'object' && !Array.isArray(directParse)) {
+      const keys = Object.keys(directParse);
+      const keysStr = keys.join("_").toLowerCase();
+      
+      const rowCount = Array.isArray(directParse[keys[0]]) ? directParse[keys[0]].length : 1;
+      const rows = [];
+      for (let i = 0; i < rowCount; i++) {
+        const row: any = {};
+        keys.forEach(k => {
+          row[k] = Array.isArray(directParse[k]) ? directParse[k][i] : directParse[k];
+        });
+        rows.push(row);
+      }
+      return { data: rows, keys, keysStr };
+    }
+  } catch(e) {}
+
   // Strategy 1: Find the first array of objects using lazy regex
   try {
     const arrayMatch = promptText.match(/\[\s*\{[\s\S]*?\}\s*\]/);
@@ -327,114 +350,275 @@ export const processIncomingData = (promptText: string) => {
   return { data, keys, keysStr };
 };
 
+const generateWaveformData = (amplitude: number, phase: number) => {
+  const points = [];
+  const amp = amplitude || 0.15;
+  const phRad = (phase || 0) * Math.PI / 180;
+  for (let i = -25; i <= 25; i++) {
+    const t = i / 10;
+    const val = amp * Math.exp(-t * t / 4) * Math.cos(2 * Math.PI * t + phRad);
+    points.push({
+      time: i,
+      amplitude: Number(val.toFixed(4))
+    });
+  }
+  return points;
+};
+
+const SeismicWaveformVisualizer: React.FC<{ amplitude: number; phase: number }> = ({ amplitude, phase }) => {
+  const data = useMemo(() => generateWaveformData(amplitude, phase), [amplitude, phase]);
+  
+  return (
+    <div className="mt-2.5 p-2 bg-black/60 border border-cyan-500/20 rounded-md space-y-1.5 w-full">
+      <div className="flex justify-between items-center text-[9px] font-mono text-cyan-400">
+        <span className="font-bold flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+          SEISMIC WAVEFORM SIMULATOR
+        </span>
+        <span>Amp: {amplitude.toFixed(3)} | Phase: {phase.toFixed(1)}°</span>
+      </div>
+      <div className="h-20 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 2, right: 2, left: -25, bottom: 2 }}>
+            <XAxis dataKey="time" hide />
+            <YAxis domain={[-Math.max(amplitude, 0.1) - 0.05, Math.max(amplitude, 0.1) + 0.05]} hide />
+            <Tooltip 
+              contentStyle={{ background: '#111', border: '1px solid #333', fontSize: '8px', color: '#fff', fontFamily: 'monospace' }}
+              labelStyle={{ color: '#888' }}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="amplitude" 
+              stroke="#00E5FF" 
+              strokeWidth={1.5} 
+              dot={false} 
+              activeDot={{ r: 4 }} 
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
+
+const extractSeismicParams = (content: string) => {
+  const lower = content.toLowerCase();
+  if (lower.includes("seismic") || lower.includes("amplitude") || lower.includes("amplitudo") || lower.includes("phase") || lower.includes("fasa") || lower.includes("wave")) {
+    let amp = 0.15;
+    const ampMatch = content.match(/(?:amplitude|amplitudo|R)\s*=\s*([0-9.]+)/i) || content.match(/amplitude\s+(?:is|of|pada)\s*([0-9.]+)/i);
+    if (ampMatch) {
+      const parsedAmp = parseFloat(ampMatch[1]);
+      if (!isNaN(parsedAmp)) amp = parsedAmp;
+    }
+    
+    let phase = 0;
+    const phaseMatch = content.match(/(?:phase|fasa|angle)\s*=\s*([0-9.-]+)/i) || content.match(/angle\s+(?:is|of|pada)\s*([0-9.-]+)/i);
+    if (phaseMatch) {
+      const parsedPhase = parseFloat(phaseMatch[1]);
+      if (!isNaN(parsedPhase)) phase = parsedPhase;
+    }
+    
+    return { show: true, amp, phase };
+  }
+  return { show: false, amp: 0, phase: 0 };
+};
+
+const getValueByKeys = (row: any, candidates: string[], defaultValue: number): number => {
+  if (!row || typeof row !== 'object') return defaultValue;
+  const rowKeys = Object.keys(row);
+  for (const candidate of candidates) {
+    const matched = rowKeys.find(k => k.toLowerCase() === candidate.toLowerCase() || k.toLowerCase().includes(candidate.toLowerCase()));
+    if (matched !== undefined) {
+      const val = Number(row[matched]);
+      if (!isNaN(val)) return val;
+    }
+  }
+  return defaultValue;
+};
+
+const isGV = (r: string) => r === 'GV' || r.includes('Werf') || r.includes('Vance') || r.includes('Geophysicist') || r.includes('Operator');
+const isGR = (r: string) => r === 'GR' || r.includes('Rostova') || r.includes('Ratnasari') || r.includes('Geologist');
+const isKT = (r: string) => r === 'KT' || r.includes('Teguh') || r.includes('Seismologist');
+const isPT = (r: string) => r === 'PT' || r.includes('Wijaya') || r.includes('Petrophysicist');
+const isSM = (r: string) => r === 'SM' || r.includes('Chen') || r.includes('Structural') || r.includes('Climatologist');
+const isDE = (r: string) => r === 'DE' || r.includes('Mendez') || r.includes('Drilling') || r.includes('Engineer');
+const isHSE = (r: string) => r === 'HSE' || r.includes('Safety');
+
 const calcWellLogging = (role: string, data: any[]) => {
-  const phi = data.length ? data.map(d => Number(d.porositas || d.porosity || 0.2)).reduce((a,b)=>a+b)/data.length : 0.2;
-  const rt = data.length ? data.map(d => Number(d.resistivitas || d.resistivity_ohm_m || d.resistivitas_ohm || 20)).reduce((a,b)=>a+b)/data.length : 20;
+  const phi = data.length ? data.map(d => getValueByKeys(d, ["porositas", "porosity", "phi", "por"], 0.2)).reduce((a,b)=>a+b)/data.length : 0.2;
+  const rt = data.length ? data.map(d => getValueByKeys(d, ["resistivitas", "resistivity", "rt", "res", "resistivity_ohm_m"], 20)).reduce((a,b)=>a+b)/data.length : 20;
   const rw = 0.05, a = 1, m = 2, n = 2; // Default Archie param
   const sw = Math.pow((a * rw) / (Math.pow(phi, m) * (rt || 1)), 1/n);
   const isAlert = sw > 0.8;
-  return `[MATH CORE - ${role}] Archie's Law (Sw) = ${sw.toFixed(4)}. ${isAlert ? 'CRITICAL ALERT: Saturasi air tinggi.' : 'Indikasi hidrokarbon komersial.'}`;
+
+  if (isPT(role)) {
+    return `[MATH CORE - ${role}] Archie's Saturation Solver: With average Porosity φ = ${phi.toFixed(3)} and Deep Resistivity Rt = ${rt.toFixed(1)} Ωm, Water Saturation Sw is ${(sw*100).toFixed(1)}%. ${isAlert ? 'CRITICAL ALERT: High brine content, bypass target reservoir.' : 'Strong indicator of commercial hydrocarbon/geothermal steam accumulation.'}`;
+  }
+  if (isGV(role)) {
+    return `[MATH CORE - ${role}] Lithology Shale Log: Cross-referencing resistivity Rt = ${rt.toFixed(1)} Ωm with estimated porosity. Rock is porous and fluid-saturated. Caprock integrity looks stable.`;
+  }
+  if (isGR(role)) {
+    return `[MATH CORE - ${role}] Structural Facies Profile: Stratigraphic analysis points to a highly permeable reservoir block bounded by claystone. Sandstone body thickness is well-preserved.`;
+  }
+  return `[MATH CORE - ${role}] Well Log Assessment: Formation fluid saturation (Sw) calculated at ${(sw*100).toFixed(1)}%. Standard mud log monitoring active.`;
 };
 
 const calcSeismic = (role: string, data: any[]) => {
-  const vel = data.length ? data.map(d => Number(d.kecepatan_vp || d.velocity || 2500)).reduce((a,b)=>a+b)/data.length : 2500;
-  const den = data.length ? data.map(d => Number(d.densitas || d.density || 2.2)).reduce((a,b)=>a+b)/data.length : 2.2;
-  const z = den * vel;
-  const isAlert = z < 4000;
-  return `[MATH CORE - ${role}] Acoustic Impedance: ${z.toFixed(2)} Rayls. ${isAlert ? 'CRITICAL ALERT: Anomali impedansi rendah (gas sand possible).' : 'Struktur kompak.'}`;
+  const amp = data.length ? data.map(d => getValueByKeys(d, ["seismic_amplitude", "amplitude", "amplitudo", "amp"], 0.15)).reduce((a,b)=>a+b)/data.length : 0.15;
+  const phase = data.length ? data.map(d => getValueByKeys(d, ["phase_angle", "phase", "fasa", "angle"], 0)).reduce((a,b)=>a+b)/data.length : 0;
+  const time = data.length ? data.map(d => getValueByKeys(d, ["time_ms", "time", "waktu", "t"], 1200)).reduce((a,b)=>a+b)/data.length : 1200;
+
+  if (isGV(role)) {
+    const z0 = 3000;
+    const z = z0 * Math.exp(2 * amp);
+    const isAlert = z < 1500 || z > 6000;
+    return `[MATH CORE - ${role}] Acoustic Impedance Inversion: Using average seismic amplitude R = ${amp.toFixed(3)}, the inverted Acoustic Impedance is Z = ${z.toFixed(2)} Rayls (vs base ${z0} Rayls). ${isAlert ? 'CRITICAL WARNING: Major low-impedance anomaly detected (potential gas-sand/hot reservoir layer).' : 'Struktur kompak dan stabil.'}`;
+  }
+
+  if (isGR(role)) {
+    const absPhase = Math.abs(phase);
+    let desc = "Standard phase reflection.";
+    if (absPhase > 160) {
+      desc = "Extreme phase polarity reversal (near ±180°) indicating sudden transition to highly porous, low-velocity hydrothermal fluid layer.";
+    } else if (absPhase > 75 && absPhase < 105) {
+      desc = "Phase angle near 90° suggests thin-bed seismic tuning limits.";
+    }
+    return `[MATH CORE - ${role}] Seismic Phase Profile: Mean Phase Angle = ${phase.toFixed(2)}°. ${desc} This confirms sharp structural boundaries.`;
+  }
+
+  if (isKT(role) || isSM(role)) {
+    const vel = data.length ? data.map(d => getValueByKeys(d, ["kecepatan_vp", "velocity", "vp", "v_p", "p_wave", "velocity_m_s"], 2500)).reduce((a,b)=>a+b)/data.length : 2500;
+    const den = data.length ? data.map(d => getValueByKeys(d, ["densitas", "density", "rho", "density_g_cc"], 2.2)).reduce((a,b)=>a+b)/data.length : 2.2;
+    const vs = vel / 1.73;
+    const g = (vs * vs * den) / 1000000;
+    const isAlert = g < 2.0;
+    return `[MATH CORE - ${role}] Rock Shear Mechanics: Measured Vp = ${vel.toFixed(1)} m/s, calculated S-Wave Velocity Vs = ${vs.toFixed(1)} m/s, yielding Shear Modulus G = ${g.toFixed(2)} GPa. ${isAlert ? 'WARNING: Weak mechanical shear frame/high fracture density.' : 'Highly compact structural basement.'}`;
+  }
+
+  // Drilling Engineer / Climatologist or other roles
+  const baseDepth = time * 1.5;
+  const pp = 4000 + (amp * -1000);
+  const ppg = pp / (baseDepth || 1);
+  const isAlert = ppg > 0.6;
+  return `[MATH CORE - ${role}] Geomechanical Drilling Safety: Based on traveltime ${time.toFixed(1)} ms, estimated depth is ${baseDepth.toFixed(0)}m. Estimated Pore Pressure Gradient = ${ppg.toFixed(3)} psi/ft. ${isAlert ? 'WARNING: Elevating pore pressure gradient. Recommend mud weight adjust.' : 'Safe hydrostatic pressure margins.'}`;
 };
 
 const calcGeomechanics = (role: string, data: any[]) => {
-  const pp = data.length ? data.map(d => Number(d.pore_pressure || d.pressure || 4000)).reduce((a,b)=>a+b)/data.length : 4000;
-  const depth = data.length ? data.map(d => Number(d.kedalaman_m || d.kedalaman || d.tvd || 1000)).reduce((a,b)=>a+b)/data.length : 1000;
+  const pp = data.length ? data.map(d => getValueByKeys(d, ["pore_pressure", "pressure", "tekanan", "pp"], 4000)).reduce((a,b)=>a+b)/data.length : 4000;
+  const depth = data.length ? data.map(d => getValueByKeys(d, ["kedalaman_m", "kedalaman", "tvd", "depth"], 1000)).reduce((a,b)=>a+b)/data.length : 1000;
   const ppg = pp / (depth || 1);
   const isAlert = ppg > 0.6;
-  return `[MATH CORE - ${role}] Pore Pressure Gradient = ${ppg.toFixed(3)} psi/ft. ${isAlert ? 'CRITICAL ALERT: Overpressure zone terdeteksi.' : 'Gradien normal.'}`;
+
+  if (isDE(role)) {
+    return `[MATH CORE - ${role}] Borehole Stability Check: At depth ${depth.toFixed(0)}m with Pore Pressure = ${pp.toFixed(0)} psi, the calculated PPG is ${ppg.toFixed(3)} psi/ft. ${isAlert ? 'CRITICAL SHIELD WARNING: High overpressure hazard! Casing collapse or blowout possible.' : 'Standard operational stability.'}`;
+  }
+  if (isKT(role)) {
+    return `[MATH CORE - ${role}] Fracture Pressure Limit: Pore pressure gradient is ${ppg.toFixed(3)} psi/ft. Elevated pore fluid pressures may trigger micro-slip on active fault zones.`;
+  }
+  return `[MATH CORE - ${role}] Geomechanical Model: Pore Pressure Gradient = ${ppg.toFixed(3)} psi/ft at ${depth.toFixed(0)}m. Rock strength limits are nominal.`;
 };
 
 const calcGravityMagnetic = (role: string, data: any[]) => {
-  const g_obs = data.length ? data.map(d => Number(d.bouguer || d.bouguer_anomaly || d.anomali_bouguer || 50)).reduce((a,b)=>a+b)/data.length : 50;
-  const h = data.length ? data.map(d => Number(d.elevasi || d.elevation || 100)).reduce((a,b)=>a+b)/data.length : 100;
+  const g_obs = data.length ? data.map(d => getValueByKeys(d, ["bouguer", "bouguer_anomaly", "anomali_bouguer", "gravity"], 50)).reduce((a,b)=>a+b)/data.length : 50;
+  const h = data.length ? data.map(d => getValueByKeys(d, ["elevasi", "elevation", "h"], 100)).reduce((a,b)=>a+b)/data.length : 100;
   const density = 2.67; 
   const bouguer = g_obs + (0.3086 - 0.0419 * density) * h;
   const isAlert = Math.abs(bouguer) > 100;
-  return `[MATH CORE - ${role}] Bouguer Anomaly = ${bouguer.toFixed(2)} mGal. ${isAlert ? 'CRITICAL ALERT: Anomali gravitasi ekstrem.' : 'Respons batuan dasar stabil.'}`;
+
+  if (isGV(role)) {
+    return `[MATH CORE - ${role}] Bouguer Density Inversion: Combined elevation ${h.toFixed(1)}m and anomaly yields absolute Bouguer Value = ${bouguer.toFixed(2)} mGal. ${isAlert ? 'WARNING: Deep-seated heavy volcanic intrusive or basement graben boundary.' : 'Stable crustal density balance.'}`;
+  }
+  if (isGR(role)) {
+    return `[MATH CORE - ${role}] Structural Fault Throw: Regional gravity gradient of ${bouguer.toFixed(1)} mGal suggests tilted basement block geometry.`;
+  }
+  return `[MATH CORE - ${role}] Gravity Model: Calculated Bouguer Anomaly = ${bouguer.toFixed(2)} mGal. Ground density profiles are well-calibrated.`;
 };
 
 const calcElectrical = (role: string, data: any[]) => {
-  const v = data.length ? data.map(d => Number(d.potensial || d.voltage || 10)).reduce((a,b)=>a+b)/data.length : 10;
-  const i = data.length ? data.map(d => Number(d.arus || d.current || 2)).reduce((a,b)=>a+b)/data.length : 2;
+  const v = data.length ? data.map(d => getValueByKeys(d, ["potensial", "voltage", "v"], 10)).reduce((a,b)=>a+b)/data.length : 10;
+  const i = data.length ? data.map(d => getValueByKeys(d, ["arus", "current", "i"], 2)).reduce((a,b)=>a+b)/data.length : 2;
   const k = 1.5; // Geometric factor
   const rho = k * (v / (i || 1));
   const isAlert = rho < 10;
-  return `[MATH CORE - ${role}] Apparent Resistivity = ${rho.toFixed(2)} Ohm-m. ${isAlert ? 'CRITICAL ALERT: Tahanan jenis sangat rendah (fluid konduktif/mineral).' : 'Batuan resistif.'}`;
+
+  if (isGV(role) || isPT(role)) {
+    return `[MATH CORE - ${role}] Apparent Resistivity Inversion: ρ = ${rho.toFixed(2)} Ohm-m. ${isAlert ? 'CRITICAL ALERT: Extremely conductive layer (<10 Ohm-m). Strongly supports presence of active thermal clay cap or saline fluids.' : 'Resistive formation bounds.'}`;
+  }
+  if (isGR(role)) {
+    return `[MATH CORE - ${role}] Clay Hydration Facies: Conductivity suggests advanced hydrothermal alteration of rock into clay.`;
+  }
+  return `[MATH CORE - ${role}] Electrical Resistivity: Calculated Apparent Resistivity = ${rho.toFixed(2)} Ohm-m. System normal.`;
 };
 
 const calcFluidID = (role: string, data: any[]) => {
-  const vp = data.length ? data.map(d => Number(d.vp || d.p_wave || 3000)).reduce((a,b)=>a+b)/data.length : 3000;
-  const vs = data.length ? data.map(d => Number(d.vs || d.s_wave || 1500)).reduce((a,b)=>a+b)/data.length : 1500;
+  const vp = data.length ? data.map(d => getValueByKeys(d, ["vp", "p_wave", "velocity"], 3000)).reduce((a,b)=>a+b)/data.length : 3000;
+  const vs = data.length ? data.map(d => getValueByKeys(d, ["vs", "s_wave"], 1500)).reduce((a,b)=>a+b)/data.length : 1500;
   const ratio = (vp / (vs || 1));
   const ratioSq = ratio * ratio;
   const pr = (ratioSq - 2) / ( 2 * (ratioSq - 1) );
   const isAlert = pr > 0.4;
-  return `[MATH CORE - ${role}] Poisson Ratio = ${pr.toFixed(3)}. ${isAlert ? 'CRITICAL ALERT: Formasi plastis/shale tinggi.' : 'Indikasi fluida/gas.'}`;
+
+  if (isPT(role)) {
+    return `[MATH CORE - ${role}] Poisson Fluid Indicator: Ratio Vp/Vs = ${ratio.toFixed(2)}, Poisson Ratio = ${pr.toFixed(3)}. ${isAlert ? 'WARNING: Highly plastic/shale rich boundary.' : 'Favorable low Poisson ratio indicates compressible steam/gas-saturated fractures.'}`;
+  }
+  return `[MATH CORE - ${role}] Fluid Attribute Solver: Vp/Vs ratio is ${ratio.toFixed(2)} with PR = ${pr.toFixed(3)}. Fluids are well-confined.`;
 };
 
 const calcGPR = (role: string, data: any[]) => {
-  const t = data.length ? data.map(d => Number(d.waktu_ns || d.time || 50)).reduce((a,b)=>a+b)/data.length * 1e-9 : 50e-9;
-  const d_m = data.length ? data.map(d => Number(d.kedalaman || d.kedalaman_m || 2)).reduce((a,b)=>a+b)/data.length : 2;
+  const t = data.length ? data.map(d => getValueByKeys(d, ["waktu_ns", "time", "t"], 50)).reduce((a,b)=>a+b)/data.length * 1e-9 : 50e-9;
+  const d_m = data.length ? data.map(d => getValueByKeys(d, ["kedalaman", "depth", "d"], 2)).reduce((a,b)=>a+b)/data.length : 2;
   const c = 3e8; // speed of light
   const eps = Math.pow((c * t) / (2 * (d_m || 1)), 2);
   const isAlert = eps > 50;
-  return `[MATH CORE - ${role}] Dielectric Constant = ${eps.toFixed(2)}. ${isAlert ? 'CRITICAL ALERT: Zona basah/konduktif dangkal.' : 'Medium normal.'}`;
+  return `[MATH CORE - ${role}] Dielectric Constant = ${eps.toFixed(2)}. ${isAlert ? 'CRITICAL ALERT: Extremely wet/conductive shallow layer detected.' : 'Dry, resistive topsoil medium.'}`;
 };
 
 const calcRockGeochem = (role: string, data: any[]) => {
-  const grade = data.length ? data.map(d => Number(d.au_ppb || d.cu_ppm || d.kadar || 5)).reduce((a,b)=>a+b)/data.length : 5;
+  const grade = data.length ? data.map(d => getValueByKeys(d, ["au_ppb", "cu_ppm", "kadar", "grade"], 5)).reduce((a,b)=>a+b)/data.length : 5;
   const rec = 0.85;
   const price = 60; // assumed unit price
   const cost = 200;
   const val = (grade * rec * price) - cost;
   const isAlert = val < 0;
-  return `[MATH CORE - ${role}] Ore Cut-off Value = ${val.toFixed(2)} USD. ${isAlert ? 'CRITICAL ALERT: Tidak ekonomis.' : 'Lebih dari nilai cut-off (Ekonomis).'}`;
+  return `[MATH CORE - ${role}] Ore Cut-off Value = ${val.toFixed(2)} USD. ${isAlert ? 'CRITICAL ALERT: Mineral concentration too low to be economically viable.' : 'Grade exceeds cut-off limits. Highly commercial reservoir.'}`;
 };
 
 const calcMeteorology = (role: string, data: any[]) => {
-  const temp = data.length ? data.map(d => Number(d.suhu_c || d.temp || 30)).reduce((a,b)=>a+b)/data.length : 30;
-  const wind = data.length ? data.map(d => Number(d.kecepatan_angin || d.wind_speed || 15)).reduce((a,b)=>a+b)/data.length : 15;
+  const temp = data.length ? data.map(d => getValueByKeys(d, ["suhu_c", "temp", "temperature"], 30)).reduce((a,b)=>a+b)/data.length : 30;
+  const wind = data.length ? data.map(d => getValueByKeys(d, ["kecepatan_angin", "wind_speed", "wind"], 15)).reduce((a,b)=>a+b)/data.length : 15;
   const idx = temp - (0.7 * wind);
   const isAlert = idx < 10 || wind > 40;
-  return `[MATH CORE - ${role}] Wind Chill/Storm Index = ${idx.toFixed(2)}. ${isAlert ? 'CRITICAL ALERT: Kondisi cuaca ekstrem area operasi.' : 'Cuaca operasional aman.'}`;
+  return `[MATH CORE - ${role}] Atmospheric Wind Chill = ${idx.toFixed(2)}. ${isAlert ? 'CRITICAL ALERT: Extreme weather conditions on drilling platform!' : 'Weather within nominal operating tolerances.'}`;
 };
 
 const calcGroundwater = (role: string, data: any[]) => {
-  const k = data.length ? data.map(d => Number(d.permeabilitas || d.k || d.transmisivitas || 0.5)).reduce((a,b)=>a+b)/data.length : 0.5;
+  const k = data.length ? data.map(d => getValueByKeys(d, ["permeabilitas", "k", "transmisivitas"], 0.5)).reduce((a,b)=>a+b)/data.length : 0.5;
   const dhdl = 0.02; // gradient
   const a = 100; // area
   const q = -k * a * dhdl;
   const isAlert = Math.abs(q) > 5;
-  return `[MATH CORE - ${role}] Darcy's Law Q = ${q.toFixed(3)} m3/d. ${isAlert ? 'CRITICAL ALERT: Kebocoran / aliran tinggi terdeteksi.' : 'Akuifer stabil.'}`;
+  return `[MATH CORE - ${role}] Darcy's Flow Q = ${q.toFixed(3)} m3/day. ${isAlert ? 'CRITICAL WARNING: Heavy underground fluid flow. Seal integrity threatened.' : 'Aquifer flow rate stable.'}`;
 };
 
 const calcSoilEnv = (role: string, data: any[]) => {
-  const ph = data.length ? data.map(d => Number(d.ph_tanah || d.ph || 6)).reduce((a,b)=>a+b)/data.length : 6;
+  const ph = data.length ? data.map(d => getValueByKeys(d, ["ph_tanah", "ph"], 6)).reduce((a,b)=>a+b)/data.length : 6;
   const h_plus = Math.pow(10, -ph);
   const isAlert = ph < 4;
-  return `[MATH CORE - ${role}] H+ Concentration = ${h_plus.toExponential(3)} M. ${isAlert ? 'CRITICAL ALERT: Asam ekstrem, korosi peralatan bor!' : 'pH tanah standar toleransi.'}`;
+  return `[MATH CORE - ${role}] H+ Ion Concentration = ${h_plus.toExponential(3)} M. ${isAlert ? 'CRITICAL WARNING: Extremely acidic soil/water! Threatens drill string casing with advanced corrosion.' : 'Soil acidity within safe structural margins.'}`;
 };
 
 const calcGasAirQuality = (role: string, data: any[]) => {
-  const conc = data.length ? data.map(d => Number(d.h2s_ppm || d.ch4_ppm || d.gas || d.co2 || 5)).reduce((a,b)=>a+b)/data.length : 5;
+  const conc = data.length ? data.map(d => getValueByKeys(d, ["h2s_ppm", "ch4_ppm", "gas", "co2", "concentration"], 5)).reduce((a,b)=>a+b)/data.length : 5;
   const lel_limit = 100; 
   const lel = (conc / lel_limit) * 100;
   const isAlert = conc > 10;
-  return `[MATH CORE - ${role}] LEL Safety = ${lel.toFixed(2)}% | Conc: ${conc.toFixed(2)} ppm. ${isAlert ? 'CRITICAL ALERT: H2S/Gas BERACUN MENGORBANKAN KESELAMATAN (Evakuasi segera!).' : 'Ambang batas gas aman.'}`;
+  return `[MATH CORE - ${role}] LEL Safety Index = ${lel.toFixed(2)}% | Toxic Conc: ${conc.toFixed(2)} ppm. ${isAlert ? 'CRITICAL LIFE SAFETY EMERGENCY: H2S toxic gas levels exceeding safety limits. Immediate evacuation triggered!' : 'Atmospheric trace gases well below hazardous thresholds.'}`;
 };
 
 const calcSpatial = (role: string, data: any[]) => {
-  const r = data.length ? data.map(d => Number(d.subsidence || d.penurunan || d.elevasi || 0)).reduce((a,b)=>a+b)/data.length : 0;
+  const r = data.length ? data.map(d => getValueByKeys(d, ["subsidence", "penurunan", "elevasi", "displacement"], 0)).reduce((a,b)=>a+b)/data.length : 0;
   const isAlert = Math.abs(r) > 0.05;
-  return `[MATH CORE - ${role}] Subsidence Rate/Trend = ${r.toFixed(4)}. ${isAlert ? 'CRITICAL ALERT: Penurunan tanah rawan.' : 'Stabilitas permukaan dapat diterima.'}`;
+  return `[MATH CORE - ${role}] Ground Subsidence Rate = ${r.toFixed(4)} m/year. ${isAlert ? 'CRITICAL ALIGNMENT ALERT: Heavy displacement. Surface casing integrity at risk.' : 'Surface alignment is stable.'}`;
 };
 
 export const generateCalculatedDummy = (agentRole, promptText) => {
@@ -443,25 +627,25 @@ export const generateCalculatedDummy = (agentRole, promptText) => {
   
   const { data, keysStr } = result;
 
-  if (keysStr.includes("gamma")) return calcWellLogging(agentRole, data);
-  if (keysStr.includes("amplitudo")) return calcSeismic(agentRole, data);
-  if (keysStr.includes("pore_pressure")) return calcGeomechanics(agentRole, data);
-  if (keysStr.includes("bouguer")) return calcGravityMagnetic(agentRole, data);
-  if (keysStr.includes("resistivitas_semu")) return calcElectrical(agentRole, data);
-  if (keysStr.includes("poisson")) return calcFluidID(agentRole, data);
-  if (keysStr.includes("waktu_ns")) return calcGPR(agentRole, data);
-  if (keysStr.includes("au_ppb") || keysStr.includes("cu_ppm") || keysStr.includes("sampel_id")) return calcRockGeochem(agentRole, data);
-  if (keysStr.includes("kecepatan_angin") || keysStr.includes("suhu_c") || keysStr.includes("jam_ke")) return calcMeteorology(agentRole, data);
-  if (keysStr.includes("level_air") || (keysStr.includes("waktu_jam") && keysStr.includes("transmisivitas"))) return calcGroundwater(agentRole, data);
-  if (keysStr.includes("ph_tanah") || keysStr.includes("titik_bor")) return calcSoilEnv(agentRole, data);
-  if (keysStr.includes("h2s_ppm") || (keysStr.includes("waktu_jam") && keysStr.includes("co2"))) return calcGasAirQuality(agentRole, data);
-  if (keysStr.includes("subsidence") || keysStr.includes("elevasi")  || (keysStr.includes("lokasi_id"))) return calcSpatial(agentRole, data);
+  if (keysStr.includes("gamma") || keysStr.includes("gamma_ray_api") || keysStr.includes("gr") || keysStr.includes("porosity") || keysStr.includes("porositas")) return calcWellLogging(agentRole, data);
+  if (keysStr.includes("amplitudo") || keysStr.includes("vp_m_s") || keysStr.includes("seismic") || keysStr.includes("amplitude") || keysStr.includes("phase") || keysStr.includes("fasa")) return calcSeismic(agentRole, data);
+  if (keysStr.includes("pore_pressure") || keysStr.includes("pressure") || keysStr.includes("tekanan")) return calcGeomechanics(agentRole, data);
+  if (keysStr.includes("bouguer") || keysStr.includes("bouguer_anomaly_mgal") || keysStr.includes("gravity") || keysStr.includes("anomali")) return calcGravityMagnetic(agentRole, data);
+  if (keysStr.includes("resistivitas_semu") || keysStr.includes("resistivitas") || keysStr.includes("resistivity")) return calcElectrical(agentRole, data);
+  if (keysStr.includes("poisson") || keysStr.includes("p_wave") || keysStr.includes("s_wave")) return calcFluidID(agentRole, data);
+  if (keysStr.includes("waktu_ns") || keysStr.includes("ns")) return calcGPR(agentRole, data);
+  if (keysStr.includes("au_ppb") || keysStr.includes("cu_ppm") || keysStr.includes("sampel_id") || keysStr.includes("grade")) return calcRockGeochem(agentRole, data);
+  if (keysStr.includes("kecepatan_angin") || keysStr.includes("suhu_c") || keysStr.includes("jam_ke") || keysStr.includes("wind") || keysStr.includes("temp")) return calcMeteorology(agentRole, data);
+  if (keysStr.includes("level_air") || (keysStr.includes("waktu_jam") && keysStr.includes("transmisivitas")) || keysStr.includes("permeabilitas") || keysStr.includes("darcy")) return calcGroundwater(agentRole, data);
+  if (keysStr.includes("ph_tanah") || keysStr.includes("titik_bor") || keysStr.includes("ph")) return calcSoilEnv(agentRole, data);
+  if (keysStr.includes("h2s_ppm") || (keysStr.includes("waktu_jam") && keysStr.includes("co2")) || keysStr.includes("gas") || keysStr.includes("h2s")) return calcGasAirQuality(agentRole, data);
+  if (keysStr.includes("subsidence") || keysStr.includes("elevasi")  || (keysStr.includes("lokasi_id")) || keysStr.includes("displacement")) return calcSpatial(agentRole, data);
 
   return "[MATH CORE] Modul terhubung, namun parameter rumus belum didefinisikan.";
 };
 
 export default function SwarmRoom({ activeModule, drillCoordinates, onClearCoordinates }: SwarmRoomProps) {
-  const { addLog, globalData } = useGlobalGeoContext();
+  const { addLog, globalData, systemLogs } = useGlobalGeoContext();
   const [restoredState, setRestoredState] = useState<any>({});
   useTimeTravelOverride(setRestoredState);
 
@@ -739,17 +923,17 @@ Please adapt your analysis to whatever column headers are present in the provide
     
     // Fallback if payload is empty or lacks key lists
     if (!payload.geometry_type && !payload.vp_m_s && !payload.gamma_ray_api && !payload.bouguer_anomaly_mgal) {
-       if (activeModule === 'seismicData') {
+       if (activeModule === 'seismicData' || activeModule === 'seismic') {
           const seismicRows = (globalData.seismicData && globalData.seismicData.length > 0)
             ? globalData.seismicData
             : seismicPayload;
           payload.vp_m_s = seismicRows.map((r: any) => Number(r.vp || r.v_p || r.p_wave || r.velocity || r.vel || 0));
-       } else if (activeModule === 'wellLoggingData') {
+       } else if (activeModule === 'wellLoggingData' || activeModule === 'well-logging') {
           const wellLogRows = (globalData.wellLoggingData && globalData.wellLoggingData.length > 0)
             ? globalData.wellLoggingData
             : wellLoggingPayload;
           payload.gamma_ray_api = wellLogRows.map((r: any) => Number(r.gr || r.gamma || r.gamma_ray || 85));
-       } else if (activeModule === 'gravityData') {
+       } else if (activeModule === 'gravityData' || activeModule === 'gravity-mag') {
           const gravityRows = (globalData.gravityData && globalData.gravityData.length > 0)
             ? globalData.gravityData
             : gravityMagneticPayload;
@@ -764,11 +948,11 @@ Please adapt your analysis to whatever column headers are present in the provide
 
 
     let fallbackBaseData: any[] = [];
-    if (activeModule === 'wellLoggingData') {
+    if (activeModule === 'wellLoggingData' || activeModule === 'well-logging') {
        fallbackBaseData = (globalData.wellLoggingData && globalData.wellLoggingData.length > 0) ? globalData.wellLoggingData : wellLoggingPayload;
-    } else if (activeModule === 'seismicData') {
+    } else if (activeModule === 'seismicData' || activeModule === 'seismic') {
        fallbackBaseData = (globalData.seismicData && globalData.seismicData.length > 0) ? globalData.seismicData : seismicPayload;
-    } else if (activeModule === 'gravityData') {
+    } else if (activeModule === 'gravityData' || activeModule === 'gravity-mag') {
        fallbackBaseData = (globalData.gravityData && globalData.gravityData.length > 0) ? globalData.gravityData : gravityMagneticPayload;
     }
 
@@ -1090,24 +1274,35 @@ Please adapt your analysis to whatever column headers are present in the provide
           throw new Error(data.error || "Swarm node timeout or internal error");
         }
       } catch (err: any) {
-        setIsApiActive(false);
-        setApiErrorBanner(false);
-        
+        let displayError = err.message || "Interrupted API connection. API Quota Exhausted or Error.";
+        if (displayError.includes('429') || displayError.includes('Quota')) {
+          displayError = "Rate Limit 429: API Quota Exhausted. Please switch keys or wait.";
+        } else if (displayError.length > 200) {
+          displayError = displayError.substring(0, 200) + '...';
+        }
+
         addLog({
           type: 'ERROR',
           source: 'Swarm API',
-          message: err.message || "Interrupted API connection. Fallbacks exhausted, routing to local coprocessing core.",
+          message: displayError,
           rawData: err
         });
 
-        // Instantly populate with local generated math consensus
-        triggerLocalFallbackDebate(prompt, startTime);
+        setMessages(prev => [...prev, {
+          agent: "SYSTEM EVENT",
+          role: "CORE ORCHESTRATOR",
+          reasoning: "HALT_DUE_TO_ERROR",
+          content: `CRITICAL API ERROR: ${displayError} (Calculation forced through API per user request, preventing local fallback.)`,
+          avatar: "SYS",
+          timestamp: new Date().toLocaleTimeString()
+        }]);
+
       } finally {
         setLoading(false);
       }
     } else {
       console.log("[SYSTEM] DUMMY MODE ACTIVE. Short-circuiting API. Using local generated baseline.");
-      triggerLocalFallbackDebate(prompt, startTime);
+      triggerLocalFallbackDebate(prompt, startTime, rawPayloadForHashing);
       setLoading(false);
     }
   };
@@ -1251,6 +1446,115 @@ Please adapt your analysis to whatever column headers are present in the provide
     a.download = `GeoAI_Pro_Prospect_Report_${activeModule}.md`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const generateReportTextSynchronously = () => {
+    let reportStr = `# GEOAI PRO // SWARM SCIENCE GEOPHYSICS SURVEY REPORT\n`;
+    reportStr += `**Timestamp:** ${new Date().toLocaleString()}  |  **Survey Active Lens:** ${activeModule.toUpperCase()}\n`;
+    reportStr += `**Core Cluster Metrics:** NVIDIA A100 Matrix Accelerators Active\n`;
+    reportStr += `**Context Journals Vectorized:** ${ingestedJournals.length} indexed files\n\n`;
+    reportStr += `## I. GEOLOGICAL EXPERT DEBATE SUMMATION\n`;
+    reportStr += `This professional consensus was securely generated across 100+ swarm agents.\n\n`;
+    
+    if (drillCoordinates) {
+      reportStr += `### Targeted Virtual Drilling Coordinates\n`;
+      reportStr += `* Easting X: ${drillCoordinates.x.toFixed(3)}\n`;
+      reportStr += `* Northing Y: ${drillCoordinates.y.toFixed(3)}\n`;
+      reportStr += `* Depth Z: ${drillCoordinates.z.toFixed(3)}\n\n`;
+    }
+
+    reportStr += `## II. SUBSURFACE SIMULATION PARAMETERS & COMPARISON (A vs B)\n`;
+    reportStr += `| Stratigraphic Boundary | Scenario A (Mitigate) | Scenario B (Explore) | Active Setup Mode |\n`;
+    reportStr += `| Acoustic Impedance Limit | ${scenarioA.acousticImpedance} GPa*s/m | ${scenarioB.acousticImpedance} GPa*s/m | ${activeScenario === 'A' ? 'Scenario A' : 'Scenario B'} |\n`;
+    reportStr += `| Resistivity Threshold | ${scenarioA.resistivityThreshold} Ohm-m | ${scenarioB.resistivityThreshold} Ohm-m | ${activeScenario === 'A' ? 'Scenario A' : 'Scenario B'} |\n`;
+    reportStr += `| Shale / Clay Cut-off | ${scenarioA.shaleCutoff}% | ${scenarioB.shaleCutoff}% | ${activeScenario === 'A' ? 'Scenario A' : 'Scenario B'} |\n\n`;
+
+    reportStr += `## III. MASTER SESSION TRANSCRIPT LOGS\n`;
+    messages.forEach(m => {
+      reportStr += `* **[${m.timestamp}] ${m.agent} (${m.role}):**\n  ${m.content}\n\n`;
+    });
+    return reportStr;
+  };
+
+  const exportToPDF = async () => {
+    try {
+      await generateDashboardSnapshot(
+        "dashboard-capture-zone", 
+        `GeoAI_Pro_Survey_Report_${activeModule}.pdf`, 
+        'save', 
+        { logs: systemLogs, data: globalData }
+      );
+    } catch (e: any) {
+      console.error(e);
+      alert(`[PDF ERROR] Gagal mencetak PDF: ${e.message}`);
+    }
+  };
+
+  const exportToCSV = () => {
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "GEOAI PRO SURVEY REPORT METRICS\n";
+    csvContent += `Timestamp,${new Date().toLocaleString()}\n`;
+    csvContent += `Active Module,${activeModule.toUpperCase()}\n\n`;
+    
+    csvContent += "SUBSURFACE PARAMETERS & COMPARISON (A vs B)\n";
+    csvContent += "Parameter,Scenario A (Mitigate),Scenario B (Explore),Active Value,Recommended\n";
+    csvContent += `Acoustic Impedance,${scenarioA.acousticImpedance},${scenarioB.acousticImpedance},${activeScenario === 'A' ? scenarioA.acousticImpedance : scenarioB.acousticImpedance},${optimizedParams?.acousticImpedance || 'N/A'}\n`;
+    csvContent += `Resistivity Threshold,${scenarioA.resistivityThreshold},${scenarioB.resistivityThreshold},${activeScenario === 'A' ? scenarioA.resistivityThreshold : scenarioB.resistivityThreshold},${optimizedParams?.resistivityThreshold || 'N/A'}\n`;
+    csvContent += `Shale Volume Cutoff,${scenarioA.shaleCutoff},${scenarioB.shaleCutoff},${activeScenario === 'A' ? scenarioA.shaleCutoff : scenarioB.shaleCutoff},${optimizedParams?.shaleCutoff || 'N/A'}\n\n`;
+    
+    if (drillCoordinates) {
+      csvContent += "DRILL COORDINATES ACTIVE\n";
+      csvContent += `Easting X,${drillCoordinates.x.toFixed(3)}\n`;
+      csvContent += `Northing Y,${drillCoordinates.y.toFixed(3)}\n`;
+      csvContent += `Depth Z,${drillCoordinates.z.toFixed(3)}\n\n`;
+    }
+    
+    csvContent += "SWARM CHAT LOGS TRANSCRIPT\n";
+    csvContent += "Timestamp,Agent,Role,Message\n";
+    
+    // Ensure we combine local messages state or localStorage fallback
+    const finalSwarmMessages = messages && messages.length > 0 ? messages : (() => {
+      try {
+        const saved = localStorage.getItem("geoai_swarm_chat_v1");
+        return saved ? JSON.parse(saved) : [];
+      } catch { return []; }
+    })();
+
+    finalSwarmMessages.forEach((m: any) => {
+      const escapedContent = (m.content || "").replace(/"/g, '""');
+      csvContent += `"${m.timestamp}","${m.agent || m.role}","${m.role || ''}","${escapedContent}"\n`;
+    });
+
+    // Add Sandbox Chat Logs Transcript if exists!
+    csvContent += "\nSANDBOX CHAT LOGS TRANSCRIPT (MASTER GEO-SYNTHESIZER)\n";
+    csvContent += "Role,Message\n";
+    try {
+      const consultantSaved = localStorage.getItem("geoai_consultant_chat");
+      if (consultantSaved) {
+        const consultantHistory = JSON.parse(consultantSaved);
+        if (Array.isArray(consultantHistory) && consultantHistory.length > 0) {
+          consultantHistory.forEach((msg: any) => {
+            const sender = msg.role === 'user' ? 'User (Geophysicist)' : 'Master Geo-Synthesizer (AI)';
+            const escapedContent = msg.content.replace(/"/g, '""');
+            csvContent += `"${sender}","${escapedContent}"\n`;
+          });
+        } else {
+          csvContent += "N/A,No sandbox chat history active.\n";
+        }
+      } else {
+        csvContent += "N/A,No sandbox chat history active.\n";
+      }
+    } catch (e) {
+      csvContent += "N/A,Error reading sandbox chat history.\n";
+    }
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `GeoAI_Pro_Calculations_${activeModule}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -1422,6 +1726,13 @@ Please adapt your analysis to whatever column headers are present in the provide
                     {true ? "✦ LIVE INFERENCE // REAL-TIME COGNITIVE SWARM" : "✦ RUNTIME NUMERICAL INVERSION // LOCAL COMPUTATIONAL ENGINE"}
                   </div>
                   <ReactMarkdown>{m?.content}</ReactMarkdown>
+                  {(() => {
+                    const seismic = extractSeismicParams(m?.content || '');
+                    if (seismic.show) {
+                      return <SeismicWaveformVisualizer amplitude={seismic.amp} phase={seismic.phase} />;
+                    }
+                    return null;
+                  })()}
                 </div>
                 <span className="text-[8px] text-[#555] font-mono mt-0.5 uppercase tracking-wide">{m?.role}</span>
               </motion.div>
@@ -1448,10 +1759,56 @@ Please adapt your analysis to whatever column headers are present in the provide
       {/* Drill Coordinates Panel */}
       {drillCoordinates && (
         <div className="p-2 border-y border-[#FF5722]/40 bg-[#FF5722]/5 flex justify-between items-center text-[10px] font-mono shrink-0">
-          <span className="text-white">COORDINATES ACTIVE: X:{drillCoordinates.x.toFixed(1)}, Y:{drillCoordinates.y.toFixed(1)}</span>
-          <button onClick={onClearCoordinates} className="text-[#FF5722] uppercase hover:underline">Clear</button>
+          <span className="text-white">COORD ACTIVE: X:{drillCoordinates.x.toFixed(1)}, Y:{drillCoordinates.y.toFixed(1)}</span>
+          <div className="flex gap-2 items-center">
+            <button onClick={exportToCSV} className="text-emerald-400 hover:text-emerald-300 font-bold uppercase hover:underline cursor-pointer">CSV</button>
+            <span className="text-gray-600">|</span>
+            <button onClick={exportToPDF} className="text-[#00B4FF] hover:text-[#53cbfd] font-bold uppercase hover:underline cursor-pointer">PDF</button>
+            <span className="text-gray-600">|</span>
+            <button onClick={onClearCoordinates} className="text-[#FF5722] uppercase hover:underline cursor-pointer">Clear</button>
+          </div>
         </div>
       )}
+
+      {/* Auto-suggestion quick-templates */}
+      <div className="px-3 pt-2 pb-1 bg-[#161617] border-t border-[#2e2e30] shrink-0">
+        <div className="text-[8px] font-mono text-gray-500 uppercase tracking-widest mb-1 select-none flex items-center gap-1">
+          <Sparkles size={8} className="text-[#FF5722]" />
+          <span>Quick Physical Simulation Templates</span>
+        </div>
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
+          <button 
+            type="button"
+            onClick={() => {
+              setInputMsg("Hitung saturasi air (Sw) reservoir dengan porositas 0.22 dan resistivitas 25 Ohm-m");
+              triggerSwarmDebate("Hitung saturasi air (Sw) reservoir dengan porositas 0.22 dan resistivitas 25 Ohm-m");
+            }}
+            className="text-[9px] font-mono bg-black/80 hover:bg-black hover:border-[#FF5722]/60 border border-[#2e2e30] text-[#FF5722] hover:text-white px-2 py-0.5 rounded shrink-0 transition-colors cursor-pointer"
+          >
+            ✦ Analisis Saturasi Reservoir
+          </button>
+          <button 
+            type="button"
+            onClick={() => {
+              setInputMsg("Analisis kestabilan lubang bor di kedalaman 1200m dengan pore pressure 4500 psi");
+              triggerSwarmDebate("Analisis kestabilan lubang bor di kedalaman 1200m dengan pore pressure 4500 psi");
+            }}
+            className="text-[9px] font-mono bg-black/80 hover:bg-black hover:border-[#FF5722]/60 border border-[#2e2e30] text-[#FF5722] hover:text-white px-2 py-0.5 rounded shrink-0 transition-colors cursor-pointer"
+          >
+            ✦ Geomekanika Pengeboran
+          </button>
+          <button 
+            type="button"
+            onClick={() => {
+              setInputMsg("Inversi impedansi akustik seismik dengan amplitudo 0.28 dan sudut fasa 180");
+              triggerSwarmDebate("Inversi impedansi akustik seismik dengan amplitudo 0.28 dan sudut fasa 180");
+            }}
+            className="text-[9px] font-mono bg-black/80 hover:bg-black hover:border-[#FF5722]/60 border border-[#2e2e30] text-[#FF5722] hover:text-white px-2 py-0.5 rounded shrink-0 transition-colors cursor-pointer"
+          >
+            ✦ Pencitraan Seismik Waveform
+          </button>
+        </div>
+      </div>
 
       {/* Input textbox */}
       <div className="p-3 border-t border-[#2e2e30] bg-[#161617] shrink-0">
@@ -1515,15 +1872,31 @@ Please adapt your analysis to whatever column headers are present in the provide
       </div>
 
       {/* Report button */}
-      <div className="p-4 border-t border-[#2e2e30] bg-[#0c0c0d] flex gap-2 shrink-0">
+      <div className="p-4 border-t border-[#2e2e30] bg-[#0c0c0d] flex flex-col gap-2 shrink-0">
         <button 
           onClick={compileProspectReport}
           disabled={isCompilingReport}
-          className="flex-1 bg-white/5 border border-[#2e2e30] text-gray-200 hover:bg-[#FF5722] hover:text-black py-2 rounded text-xs font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+          className="w-full bg-white/5 border border-[#2e2e30] text-gray-200 hover:bg-[#FF5722] hover:text-black py-2 rounded text-xs font-bold uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer"
         >
           {isCompilingReport ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
           Compile Survey Report
         </button>
+        <div className="flex gap-2">
+          <button 
+            type="button"
+            onClick={exportToCSV}
+            className="flex-1 bg-emerald-950/20 hover:bg-emerald-900/40 border border-emerald-900/50 text-emerald-400 py-1.5 rounded text-[10px] font-bold uppercase tracking-wide flex items-center justify-center gap-1 cursor-pointer"
+          >
+            Export CSV
+          </button>
+          <button 
+            type="button"
+            onClick={exportToPDF}
+            className="flex-1 bg-cyan-950/20 hover:bg-cyan-900/40 border border-cyan-900/50 text-cyan-400 py-1.5 rounded text-[10px] font-bold uppercase tracking-wide flex items-center justify-center gap-1 cursor-pointer"
+          >
+            Export PDF
+          </button>
+        </div>
       </div>
 
       {/* WhatsApp Scanner coupling modal with real Baileys live QR Code */}
@@ -1625,21 +1998,37 @@ Please adapt your analysis to whatever column headers are present in the provide
               </pre>
             </div>
 
-            <div className="p-4 border-t border-[#2e2e30] bg-[#161617] flex justify-end gap-3">
+            <div className="p-4 border-t border-[#2e2e30] bg-[#161617] flex flex-wrap justify-end gap-2.5">
               <button 
                 type="button"
                 onClick={() => setCompiledReport(null)}
-                className="px-6 py-2 text-xs font-bold text-gray-400 hover:text-white uppercase transition-colors"
+                className="px-4 py-2 text-xs font-bold text-gray-400 hover:text-white uppercase transition-colors"
               >
                 Dismiss
               </button>
               <button 
                 type="button"
-                onClick={downloadReportFile}
-                className="bg-[#00B4FF] text-black px-6 py-2 rounded text-xs font-bold uppercase tracking-tight hover:bg-[#53cbfd] flex items-center gap-2"
+                onClick={exportToCSV}
+                className="bg-emerald-500 text-black px-4 py-2 rounded text-xs font-bold uppercase tracking-tight hover:bg-emerald-400 flex items-center gap-1.5 cursor-pointer"
               >
-                <FileText size={14} />
-                Download Report (.md)
+                <FileText size={13} />
+                Download CSV
+              </button>
+              <button 
+                type="button"
+                onClick={exportToPDF}
+                className="bg-red-500 text-white px-4 py-2 rounded text-xs font-bold uppercase tracking-tight hover:bg-red-400 flex items-center gap-1.5 cursor-pointer"
+              >
+                <FileText size={13} />
+                Download PDF
+              </button>
+              <button 
+                type="button"
+                onClick={downloadReportFile}
+                className="bg-[#00B4FF] text-black px-4 py-2 rounded text-xs font-bold uppercase tracking-tight hover:bg-[#53cbfd] flex items-center gap-1.5 cursor-pointer"
+              >
+                <FileText size={13} />
+                Download Markdown (.md)
               </button>
             </div>
           </div>

@@ -53,6 +53,40 @@ export default function ElectricalEMModule() {
     }
   }, [activeFileName, electrodeSpacing, currentInjection]);
 
+  // Dynamic 2D/3D pseudo-section inversion and resistivity simulator
+  useEffect(() => {
+    const baseMatrix: number[][] = [];
+    for (let r = 0; r < 5; r++) {
+      const row: number[] = [];
+      for (let c = 0; c < 12; c++) {
+        // Base geologic structure: shallower beds have lower resistivity, deeper bedrock has higher resistivity
+        let baseRes = 90 + r * 30 - (c * 1.5);
+        
+        // High frequency limits electromagnetic signal depth (attenuates deep signals)
+        const depthFactor = Math.exp(-r * (frequency / 35));
+        
+        // High current injection excites the deeper zones (increases amplitude of features)
+        const injectionFactor = currentInjection / 500;
+        
+        // Water-bearing fault (conductive anomaly / low resistivity) at cols 3-5, depths 1-3
+        if (c >= 3 && c <= 5 && r >= 1 && r <= 3) {
+          baseRes = Math.max(12, baseRes - 75 * depthFactor * injectionFactor);
+        }
+        
+        // Dense granite bedrock dome (high resistivity anomaly) at cols 7-9, depth 3-4
+        if (c >= 7 && c <= 9 && r >= 2) {
+          baseRes = baseRes + 160 * (electrodeSpacing / 10) * injectionFactor;
+        }
+
+        const noise = Math.sin((c + r) * 0.9) * 8;
+        const finalVal = Math.round(Math.max(8, Math.min(650, baseRes + noise)));
+        row.push(finalVal);
+      }
+      baseMatrix.push(row);
+    }
+    setResistivityMatrix(baseMatrix);
+  }, [currentInjection, frequency, electrodeSpacing]);
+
   const gridColumns = 12;
   const gridRows = 5;
 

@@ -65,7 +65,8 @@ import {
   Droplets,
   TestTube,
   Radio,
-  Mountain
+  Mountain,
+  Book
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { HashRouter, Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom';
@@ -83,9 +84,11 @@ import SpatialTwin from './components/Modules/SpatialTwin';
 import SimulationModule from './components/Modules/SimulationModule';
 import SystemDiagnostics from './components/Modules/SystemDiagnostics';
 import MasterGeoSynthesizer from './components/Modules/AIConsultantModule';
+import ManualBookSuite from '../live/components/Modules/ManualBookSuite';
 
 // Activated Spatial Modules
 import GravityMagModule from './components/Modules/GravityMagModule';
+import SecurityAndWhatsAppPanel from '../live/components/Modules/SecurityAndWhatsAppPanel';
 import ElectricalEMModule from './components/Modules/ElectricalEMModule';
 import GPRModule from './components/Modules/GPRModule';
 import GeochemModule from './components/Modules/GeochemModule';
@@ -103,6 +106,8 @@ import FileUploader from './components/Shared/FileUploader';
 import ApiHealthMonitor from './components/Shared/ApiHealthMonitor';
 import AnalyticsDrawer from './components/Modules/AnalyticsDrawer';
 import GeoAILogo from './components/Shared/GeoAILogo';
+import LogoPhilosophyModal from './components/Shared/LogoPhilosophyModal';
+import AgentCompanion from '../../components/Shared/AgentCompanion';
 
 // Hooks
 import { useApiQueue } from './hooks/useApiQueue';
@@ -233,6 +238,7 @@ function MainDashboard() {
   const [files, setFiles] = useState<GeoFile[]>([]);
   const [isUploaderOpen, setIsUploaderOpen] = useState(false);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
+  const [isLogoModalOpen, setIsLogoModalOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [supportText, setSupportText] = useState("");
   const [supportSending, setSupportSending] = useState(false);
@@ -360,8 +366,9 @@ return () => clearTimeout(bootTimer);
           style={{ backdropFilter: 'blur(25px) brightness(40%)', background: 'radial-gradient(circle, rgba(16,16,24,0.8) 0%, rgba(10,10,12,1) 100%)' }}
           title="Click anywhere to bypass system boot loader"
         >
-          <GeoAILogo size={72} className="mb-6 animate-pulse text-[#00E5FF]" glow={true} />
-          <h1 className="text-2xl font-bold mb-4 font-mono tracking-widest text-[#00E5FF] text-center px-4">⚡ SYSTEM SECURE ACQUISITION — GEOAI PRO V4.0</h1>
+          <div className="mb-6 scale-110 transition-transform duration-500 hover:scale-125">
+            <GeoAILogo size={140} layout="vertical" glow={true} />
+          </div>
           <p className="font-mono text-sm tracking-wider text-gray-400 mb-6 text-center px-4">[BOOT] Initializing telemetry framework {import.meta.env.VITE_DEV_SIGNATURE || "0xGEOAI_C0D3"}</p>
           <div className="w-64 h-1.5 bg-[#111] overflow-hidden rounded mb-4">
              <div className="h-full bg-[#00E5FF] shadow-[0_0_10px_#00E5FF]" style={{ animation: 'loadBar 4s ease-in-out forwards' }} />
@@ -523,19 +530,13 @@ return () => clearTimeout(bootTimer);
           <SidebarItem icon={Bot} label="Master Geo-Synthesizer" to={`/${GeoModule.AI_CONSULTANT}`} />
           <SidebarItem icon={Users} label="Simulation Sandbox" to={`/${GeoModule.SIMULATION}`} />
           <SidebarItem icon={Terminal} label="Diagnostics Console" to={`/${GeoModule.DIAGNOSTICS}`} />
-          
-          <button
-            onClick={() => setIsSupportOpen(true)}
-            className="w-full flex items-center gap-3 px-4 py-3 transition-colors duration-200 border-l-2 border-transparent text-[#888888] hover:text-white hover:bg-white/5 text-left cursor-pointer font-mono"
-          >
-            <Shield size={16} className="text-[#00E5FF]" />
-            <span className="text-xs font-semibold tracking-tight uppercase">Security Support</span>
-          </button>
+          <SidebarItem icon={Shield} label="Security & WA Bot" to={`/${GeoModule.SECURITY}`} />
+          <SidebarItem icon={Book} label="Enterprise Manual Book" to={`/${GeoModule.MANUAL_BOOK}`} />
         </nav>
 
         {/* Embedded Radar Warning Scan Widget */}
         <div className="p-3 border-t border-[#222] flex justify-center bg-black/40 h-48 overflow-hidden">
-          <SeismicRadar />
+          <SeismicRadar drillCoords={drillCoords} setDrillCoords={setDrillCoords} />
         </div>
       </aside>
 
@@ -580,13 +581,17 @@ return () => clearTimeout(bootTimer);
 
         {/* Top telemetry control bar */}
         <header className="h-12 border-b border-[#333333] flex items-center justify-between px-6 bg-[#161617] shrink-0 z-10">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-1 min-w-0 mr-4">
             {/* Main Header Title/Logo */}
-            <div className="flex items-center gap-1.5 shrink-0 select-none">
-              <GeoAILogo size={18} glow={false} />
-              <span className="text-xs font-bold tracking-tight uppercase italic font-mono text-white">{BRANDING.APP_NAME.toUpperCase()}</span>
+            <div 
+              onClick={() => setIsLogoModalOpen(true)}
+              className="flex items-center gap-2 shrink-0 select-none cursor-pointer hover:opacity-90 active:scale-98 transition-all group"
+              title="Click to decode Logo Philosophy & Sonification"
+            >
+              <GeoAILogo size={28} layout="horizontal" glow={true} />
+              <span className="text-[8px] text-[#00E5FF] font-mono border border-cyan-500/20 bg-cyan-500/10 px-1 rounded tracking-tight uppercase group-hover:border-cyan-500/40 transition-all">Logo Philosophy</span>
               <span className="text-[10px] font-mono text-[#444] font-bold">/</span>
-              <span className="text-[9px] text-[#888] font-mono uppercase tracking-widest font-semibold">DIGITAL TWIN {BRANDING.APP_VERSION.toUpperCase()}</span>
+              <span className="text-[9px] text-[#888] font-mono uppercase tracking-widest font-semibold shrink-0">DIGITAL TWIN {BRANDING.APP_VERSION.toUpperCase()}</span>
             </div>
             
             {/* LIVE / DUMMY Toggle switch */}
@@ -646,8 +651,26 @@ return () => clearTimeout(bootTimer);
             
             <div className="h-4 w-px bg-[#333] shrink-0"></div>
 
-            {/* Header-Mounted API Health Monitor */}
-            <ApiHealthMonitor />
+            {/* System Status Indicator */}
+            <div className="hidden xl:flex items-center gap-1.5 px-2 py-1 rounded bg-[#1c1c1e] border border-[#2e2e30] select-none shrink-0">
+              <div className="flex items-center gap-1.5">
+                <span className={cn(
+                  "text-[9px] font-mono font-bold uppercase tracking-widest flex items-center gap-1",
+                  apiMode === 'LIVE' ? "text-emerald-400" : "text-neutral-500"
+                )}>
+                  <span className={cn("w-1.5 h-1.5 rounded-full", apiMode === 'LIVE' ? "bg-emerald-400 animate-pulse" : "bg-neutral-600")}></span>
+                  Gemini AI: {apiMode === 'LIVE' ? "ONLINE" : "STANDBY"}
+                </span>
+                <span className="text-[#444]">|</span>
+                <span className={cn(
+                  "text-[9px] font-mono font-bold uppercase tracking-widest flex items-center gap-1",
+                  apiMode === 'DUMMY' ? "text-amber-400" : "text-neutral-500"
+                )}>
+                  <span className={cn("w-1.5 h-1.5 rounded-full", apiMode === 'DUMMY' ? "bg-amber-400 animate-pulse" : "bg-neutral-600")}></span>
+                  Local Core: {apiMode === 'DUMMY' ? "ACTIVE" : "STANDBY"}
+                </span>
+              </div>
+            </div>
 
             <div className="h-4 w-px bg-[#333] shrink-0 hidden md:block"></div>
 
@@ -657,28 +680,33 @@ return () => clearTimeout(bootTimer);
             </div>
           </div>
           
-          <div className="flex items-center gap-4">
-            <div className="relative">
+          <div className="flex items-center gap-3 shrink-0">
+            {/* Header-Mounted API Health Monitor */}
+            <div className="shrink-0 relative z-50">
+              <ApiHealthMonitor />
+            </div>
+
+            <div className="relative hidden lg:block">
               <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#555]" />
               <input 
                 type="text" 
                 placeholder="Search raw data matrices..." 
-                className="bg-black/40 border border-[#333] rounded px-8 py-1 text-[10px] w-48 focus:outline-none focus:border-[#FF5722] transition-colors font-mono"
+                className="bg-black/40 border border-[#333] rounded px-8 py-1 text-[10px] w-40 xl:w-48 focus:outline-none focus:border-[#FF5722] transition-colors font-mono"
               />
             </div>
             <button 
               onClick={() => setIsAnalyticsOpen(true)}
-              className="flex items-center gap-1.5 bg-[#161617] text-gray-300 border border-[#333333] px-3 py-1 rounded text-[10px] font-bold hover:bg-white/5 transition-colors uppercase tracking-tight cursor-pointer"
+              className="hidden sm:flex items-center gap-1.5 bg-[#161617] text-gray-300 border border-[#333333] px-3 py-1 rounded text-[10px] font-bold hover:bg-white/5 transition-colors uppercase tracking-tight cursor-pointer shrink-0"
             >
               <Sliders size={12} className="text-[#00E5FF]" />
-              Analytics Suite
+              Analytics
             </button>
             <button 
               onClick={() => setIsUploaderOpen(true)}
-              className="flex items-center gap-1.5 bg-[#FF5722] text-black px-3 py-1 rounded text-[10px] font-bold hover:bg-[#ff7043] transition-colors uppercase tracking-tight cursor-pointer"
+              className="flex items-center gap-1.5 bg-[#FF5722] text-black px-3 py-1 rounded text-[10px] font-bold hover:bg-[#ff7043] transition-colors uppercase tracking-tight cursor-pointer shrink-0"
             >
               <Upload size={12} />
-              Import Geo File
+              Import
             </button>
           </div>
         </header>
@@ -713,6 +741,8 @@ return () => clearTimeout(bootTimer);
                 <Route path={`/${GeoModule.AI_CONSULTANT}`} element={<MasterGeoSynthesizer />} />
                 <Route path={`/${GeoModule.SIMULATION}`} element={<SimulationModule />} />
                 <Route path={`/${GeoModule.DIAGNOSTICS}`} element={<SystemDiagnostics />} />
+                <Route path={`/${GeoModule.SECURITY}`} element={<SecurityAndWhatsAppPanel />} />
+                <Route path={`/${GeoModule.MANUAL_BOOK}`} element={<ManualBookSuite />} />
                 {/* Fallback routes for unbuilt components, just in case */}
                 <Route path="*" element={<div className="p-8 text-[#888] font-mono">Module UI Construction...</div>} />
               </Routes>
@@ -879,6 +909,15 @@ return () => clearTimeout(bootTimer);
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Logo Philosophy Modal Decoder */}
+      <LogoPhilosophyModal 
+        isOpen={isLogoModalOpen} 
+        onClose={() => setIsLogoModalOpen(false)} 
+      />
+
+      {/* Exquisite 30-Motion AI Agent Companion */}
+      <AgentCompanion isLoading={isNavigating || isTimeTraveling} />
     </div>
     </>
   );

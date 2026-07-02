@@ -204,7 +204,7 @@ export default function ApiHealthMonitor() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.98 }}
               transition={{ duration: 0.15 }}
-              className="absolute left-0 mt-2 w-96 bg-[#161617] border border-[#2e2e30] rounded shadow-[0_10px_25px_rgba(0,0,0,0.8)] z-50 overflow-hidden flex flex-col"
+              className="absolute right-0 mt-2 w-96 bg-[#161617] border border-[#2e2e30] rounded shadow-[0_10px_25px_rgba(0,0,0,0.8)] z-50 overflow-hidden flex flex-col"
             >
               {/* Header */}
               <div className="p-3 border-b border-[#2e2e30] bg-[#1c1c1e] flex justify-between items-center shrink-0">
@@ -262,15 +262,17 @@ export default function ApiHealthMonitor() {
                 </div>
 
                 <form onSubmit={handleIngestCredentials} className="space-y-2 text-[9px]">
-                  {/* GEMINI_API_KEY */}
+                  {/* Dynamic API Key Field based on Provider */}
                   <div>
-                    <label className="text-[#888] font-mono block mb-1">GEMINI_API_KEY</label>
+                    <label className="text-[#888] font-mono block mb-1">
+                      {provider === "OpenRouter" ? "OPENROUTER_API_KEY" : provider === "Custom Proxy" ? "PROXY_API_KEY" : "GEMINI_API_KEY"}
+                    </label>
                     <div className="relative">
                       <input
                         type={showKey ? "text" : "password"}
                         value={geminiKey}
                         onChange={(e) => setGeminiKey(e.target.value)}
-                        placeholder="AIzaSy..."
+                        placeholder={provider === "OpenRouter" ? "sk-or-v1-..." : provider === "Custom Proxy" ? "Enter custom key..." : "AIzaSy..."}
                         className="w-full bg-[#1c1c1e] border border-[#2e2e30] rounded px-2 py-1 text-white placeholder-zinc-700 focus:outline-none focus:border-emerald-500/50 pr-8 font-mono text-[9px]"
                       />
                       <button

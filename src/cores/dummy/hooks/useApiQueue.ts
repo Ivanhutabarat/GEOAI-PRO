@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getEffectiveApiKey } from '../config/apiConfig';
 import { useApiMonitorStore } from '../store/ApiMonitorStore';
+import { decryptKey } from '../../../lib/cryptoShield';
 
 type QueueTask = {
   id: string;
@@ -104,6 +105,35 @@ class ApiQueueManager {
         while (attempts < maxAttempts) {
             const currentOptions = { ...task.options };
 
+            // Auto inject API key and provider from localStorage if present
+            try {
+              const encodedKey = localStorage.getItem("_vanbotz_encrypted_gemini_key");
+              const provider = localStorage.getItem("_vanbotz_provider_label") || "Google";
+              if (encodedKey) {
+                let decodedKey = decryptKey(encodedKey);
+                if (decodedKey) {
+                  decodedKey = decodedKey.trim().replace(/^["']|["']$/g, "").trim();
+                }
+                if (decodedKey) {
+                  if (!currentOptions.headers) {
+                    currentOptions.headers = {};
+                  }
+                  if (currentOptions.headers instanceof Headers) {
+                    currentOptions.headers.set('x-api-key', decodedKey);
+                    currentOptions.headers.set('x-provider-label', provider);
+                  } else if (Array.isArray(currentOptions.headers)) {
+                    currentOptions.headers.push(['x-api-key', decodedKey]);
+                    currentOptions.headers.push(['x-provider-label', provider]);
+                  } else {
+                    (currentOptions.headers as any)['x-api-key'] = decodedKey;
+                    (currentOptions.headers as any)['x-provider-label'] = provider;
+                  }
+                }
+              }
+            } catch (e) {
+              console.error("[useApiQueue] Failed to auto-inject credentials override:", e);
+            }
+
             const controller = new AbortController();
             const timeoutId = setTimeout(() => {
               controller.abort();
@@ -123,7 +153,10 @@ class ApiQueueManager {
                 clearTimeout(timeoutId);
             }
 
-            if (responseRaw && (responseRaw.status === 429 || responseRaw.status === 403 || responseRaw.status === 503)) {
+            if (useApiMonitorStore.getState().isExhaustionSimulated) {
+                isCurrentTask429 = true;
+                responseRaw = { status: 429, ok: false } as Response;
+            } else if (responseRaw && (responseRaw.status === 429 || responseRaw.status === 403 || responseRaw.status === 503)) {
                 isCurrentTask429 = true;
             } else {
                 isCurrentTask429 = false;

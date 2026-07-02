@@ -54,10 +54,31 @@ export default function GroundwaterModule() {
   const [simulationTimeline, setSimulationTimeline] = useState<any[]>([]);
 
   useEffect(() => {
-    const finalExtraction = extractionRate === '' ? inferredExtractionRate : parseFloat(extractionRate);
-    const transmissivity = parseFloat(compressibility) || 1.0;
-    // REMOVED MOCK UPDATE
-  }, [activeFileName, extractionRate, compressibility, inferredExtractionRate]);
+    const finalExtraction = extractionRate === '' ? inferredExtractionRate : (parseFloat(extractionRate) || 0);
+    const finalCompressibility = compressibility === '' ? inferredCompressibility : (parseFloat(compressibility) || 0);
+    const finalPressure = porePressure === '' ? inferredPorePressure : (parseFloat(porePressure) || 0);
+
+    const timeline = [];
+    for (let h = 1; h <= 24; h++) {
+      // transient drawdown calculation based on pumping rate and logarithmic expansion over time
+      const baseDrawdown = (finalExtraction / 320) * Math.log1p(h * 0.4);
+      const drawdown = parseFloat(baseDrawdown.toFixed(2));
+      
+      // subsidence risk factor in mm (drawdown cumulative stress * compressibility index)
+      const subsidence = parseFloat((drawdown * finalCompressibility * 0.48 * (h / 24)).toFixed(3));
+      
+      // depleted pore pressure over time (MPa)
+      const currentPressure = parseFloat(Math.max(0.01, finalPressure - (drawdown * 0.05)).toFixed(2));
+
+      timeline.push({
+        hour: `H-${h}`,
+        drawdown,
+        subsidence,
+        pressure: currentPressure
+      });
+    }
+    setSimulationTimeline(timeline);
+  }, [extractionRate, porePressure, compressibility, inferredExtractionRate, inferredCompressibility, inferredPorePressure]);
 
   const [validationError, setValidationError] = useState<string>('');
   
@@ -257,14 +278,27 @@ export default function GroundwaterModule() {
           <div className="flex justify-between items-center border-b border-[#222] pb-3">
             <h2 className="text-xs font-mono font-bold text-white uppercase tracking-wider flex items-center gap-2">
               <BarChart size={14} className="text-[#00E5FF]" />
-              Piezometric Level & Pore Pressure
+              Piezometric Level & Pore Pressure Simulation
             </h2>
             <span className="text-[9px] font-mono bg-[#1c1c1f] px-2 py-0.5 rounded text-[#888]">HYDRAULIC MATH model</span>
           </div>
 
-          <div className="h-44 w-full bg-black/60 rounded border border-[#222] p-2">
-            <DebugDump data={chartData} />
-            <DynamicChart data={chartData} type="line" moduleType="groundwater" />
+          <div className="h-56 w-full bg-black/60 rounded border border-[#222] p-2 relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={simulationTimeline} margin={{ top: 15, right: 15, left: -10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#222" />
+                <XAxis dataKey="hour" stroke="#666" style={{ fontSize: 9, fontFamily: 'monospace' }} />
+                <YAxis yAxisId="left" stroke="#00E5FF" style={{ fontSize: 9, fontFamily: 'monospace' }} label={{ value: 'Drawdown (m)', angle: -90, position: 'insideLeft', style: { fill: '#00E5FF', fontSize: 9 } }} />
+                <YAxis yAxisId="right" orientation="right" stroke="#FF5722" style={{ fontSize: 9, fontFamily: 'monospace' }} label={{ value: 'Pressure (MPa)', angle: 90, position: 'insideRight', style: { fill: '#FF5722', fontSize: 9 } }} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#111', borderColor: '#333', fontSize: 10, fontFamily: 'monospace', color: '#fff' }}
+                  labelClassName="text-[#00E5FF] font-bold"
+                />
+                <Line yAxisId="left" type="monotone" dataKey="drawdown" stroke="#00E5FF" strokeWidth={2} name="Drawdown" dot={{ r: 2 }} activeDot={{ r: 4 }} />
+                <Line yAxisId="right" type="monotone" dataKey="pressure" stroke="#FF5722" strokeWidth={2} name="Pore Pressure" dot={{ r: 2 }} activeDot={{ r: 4 }} />
+                <Line yAxisId="left" type="monotone" dataKey="subsidence" stroke="#00E676" strokeWidth={1.5} strokeDasharray="3 3" name="Subsidence (mm)" dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
           <p className="text-[9px] text-[#555] mt-1 text-right font-mono">{import.meta.env.VITE_CHART_WATERMARK}</p>
 
@@ -277,8 +311,8 @@ export default function GroundwaterModule() {
             </div>
             <div className="bg-[#111112] border border-[#222] p-3 rounded">
               <span className="block text-[8px] font-mono uppercase text-[#666]">SETTLEMENT SUBSIDENCE RISK</span>
-              <p className="text-sm font-mono font-bold text-[#FF5722] mt-1">
-                {(parseFloat(extractionRate) * parseFloat(compressibility) * 0.1).toFixed(3)} mm
+              <p className="text-sm font-mono font-bold text-[#00E676] mt-1">
+                {simulationTimeline[simulationTimeline.length - 1]?.subsidence || 0} mm
               </p>
             </div>
           </div>

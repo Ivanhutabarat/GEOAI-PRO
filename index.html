@@ -5,11 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>IVAN-GEOAI PRO v4.0</title>
     <script>
-      // Fallback stubs to prevent "@vitejs/plugin-react can't detect preamble" error
-      if (!window.$RefreshReg$) window.$RefreshReg$ = () => {};
-      if (!window.$RefreshSig$) window.$RefreshSig$ = () => (type) => type;
-      window.__vite_plugin_react_preamble_installed__ = true;
-
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(registrations) {
           for(let registration of registrations) {

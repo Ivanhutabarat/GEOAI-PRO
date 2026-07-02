@@ -1,10 +1,10 @@
 import { processIncomingData } from '../Shared/SwarmRoom';
-import React, { useRef, useState, useMemo, Component, ReactNode, useEffect, Suspense } from 'react';
+import React, { useRef, useState, useMemo, Component, ReactNode, useEffect, Suspense, useCallback } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Grid, Center } from '@react-three/drei';
+import { Grid, Center, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
-import { OrbitControls as OrbitControlsJS } from 'three/examples/jsm/controls/OrbitControls.js';
 import { useGeoDataStore, LithologyLayer, GeoDataPoint } from '../../store/GeoDataStore';
+import { useGlobalGeoContext } from '../../context/GlobalGeoContext';
 import { DebugDump } from '../../../../lib/forceRenderMapper';
 
 
@@ -291,12 +291,420 @@ function WellBoreholeVisualization({ payload, planes }: { payload: any, planes: 
   );
 }
 
+function generateStratumGeometry(
+  width: number,
+  length: number,
+  xSegs: number,
+  ySegs: number,
+  hBottomFn: (x: number, z: number) => number,
+  hTopFn: (x: number, z: number) => number
+) {
+  const vertices: number[] = [];
+  const indices: number[] = [];
+  const uvs: number[] = [];
+
+  const halfW = width / 2;
+  const halfL = length / 2;
+  const dx = width / xSegs;
+  const dz = length / ySegs;
+
+  const addTriangle = (
+    p1: [number, number, number],
+    p2: [number, number, number],
+    p3: [number, number, number]
+  ) => {
+    const startIdx = vertices.length / 3;
+    vertices.push(...p1, ...p2, ...p3);
+    indices.push(startIdx, startIdx + 1, startIdx + 2);
+    uvs.push(0, 0, 1, 0, 1, 1);
+  };
+
+  const addQuad = (
+    p1: [number, number, number],
+    p2: [number, number, number],
+    p3: [number, number, number],
+    p4: [number, number, number]
+  ) => {
+    addTriangle(p1, p2, p3);
+    addTriangle(p1, p3, p4);
+  };
+
+  // 1. Top and Bottom Surfaces
+  for (let i = 0; i < xSegs; i++) {
+    for (let j = 0; j < ySegs; j++) {
+      const x0 = -halfW + i * dx;
+      const x1 = x0 + dx;
+      const z0 = -halfL + j * dz;
+      const z1 = z0 + dz;
+
+      const yTop00 = hTopFn(x0, z0);
+      const yTop10 = hTopFn(x1, z0);
+      const yTop11 = hTopFn(x1, z1);
+      const yTop01 = hTopFn(x0, z1);
+
+      addQuad(
+        [x0, yTop00, z0],
+        [x0, yTop01, z1],
+        [x1, yTop11, z1],
+        [x1, yTop10, z0]
+      );
+
+      const yBot00 = hBottomFn(x0, z0);
+      const yBot10 = hBottomFn(x1, z0);
+      const yBot11 = hBottomFn(x1, z1);
+      const yBot01 = hBottomFn(x0, z1);
+
+      addQuad(
+        [x0, yBot00, z0],
+        [x1, yBot10, z0],
+        [x1, yBot11, z1],
+        [x0, yBot01, z1]
+      );
+    }
+  }
+
+  // 2. Side Walls
+  // Left wall (x = -halfW)
+  for (let j = 0; j < ySegs; j++) {
+    const x = -halfW;
+    const z0 = -halfL + j * dz;
+    const z1 = z0 + dz;
+
+    const yBot0 = hBottomFn(x, z0);
+    const yBot1 = hBottomFn(x, z1);
+    const yTop0 = hTopFn(x, z0);
+    const yTop1 = hTopFn(x, z1);
+
+    addQuad(
+      [x, yBot1, z1],
+      [x, yBot0, z0],
+      [x, yTop0, z0],
+      [x, yTop1, z1]
+    );
+  }
+
+  // Right wall (x = halfW)
+  for (let j = 0; j < ySegs; j++) {
+    const x = halfW;
+    const z0 = -halfL + j * dz;
+    const z1 = z0 + dz;
+
+    const yBot0 = hBottomFn(x, z0);
+    const yBot1 = hBottomFn(x, z1);
+    const yTop0 = hTopFn(x, z0);
+    const yTop1 = hTopFn(x, z1);
+
+    addQuad(
+      [x, yBot0, z0],
+      [x, yBot1, z1],
+      [x, yTop1, z1],
+      [x, yTop0, z0]
+    );
+  }
+
+  // Front wall (z = -halfL)
+  for (let i = 0; i < xSegs; i++) {
+    const z = -halfL;
+    const x0 = -halfW + i * dx;
+    const x1 = x0 + dx;
+
+    const yBot0 = hBottomFn(x0, z);
+    const yBot1 = hBottomFn(x1, z);
+    const yTop0 = hTopFn(x0, z);
+    const yTop1 = hTopFn(x1, z);
+
+    addQuad(
+      [x0, yBot0, z],
+      [x1, yBot1, z],
+      [x1, yTop1, z],
+      [x0, yTop0, z]
+    );
+  }
+
+  // Back wall (z = halfL)
+  for (let i = 0; i < xSegs; i++) {
+    const z = halfL;
+    const x0 = -halfW + i * dx;
+    const x1 = x0 + dx;
+
+    const yBot0 = hBottomFn(x0, z);
+    const yBot1 = hBottomFn(x1, z);
+    const yTop0 = hTopFn(x0, z);
+    const yTop1 = hTopFn(x1, z);
+
+    addQuad(
+      [x1, yBot1, z],
+      [x0, yBot0, z],
+      [x0, yTop0, z],
+      [x1, yTop1, z]
+    );
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+
+  return geometry;
+}
+
+function CompassAxis() {
+  return (
+    <group position={[6.5, -3.9, 6.5]}>
+      {/* Circle dial */}
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[1.0, 1.05, 32]} />
+        <meshBasicMaterial color="#00e5ff" transparent opacity={0.3} />
+      </mesh>
+      
+      {/* N Arrow */}
+      <mesh position={[0, 0, 1.0]} rotation={[Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[0.1, 0.25, 4]} />
+        <meshBasicMaterial color="#ff5722" />
+      </mesh>
+      {/* S, E, W marks */}
+      <mesh position={[1.0, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
+        <coneGeometry args={[0.07, 0.18, 4]} />
+        <meshBasicMaterial color="#00e5ff" />
+      </mesh>
+      <mesh position={[-1.0, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <coneGeometry args={[0.07, 0.18, 4]} />
+        <meshBasicMaterial color="#00e5ff" />
+      </mesh>
+      <mesh position={[0, 0, -1.0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[0.07, 0.18, 4]} />
+        <meshBasicMaterial color="#00e5ff" />
+      </mesh>
+    </group>
+  );
+}
+
+interface EarthGeologicalBlockModelProps {
+  sliceZ: number;
+  planes: THREE.Plane[];
+}
+
+function AnimatedDrillHole({ hole, planes }: { hole: any; planes: THREE.Plane[] }) {
+  const [currentDepth, setCurrentDepth] = useState(0.1);
+
+  useEffect(() => {
+    if (hole.status === 'drilling') {
+      const start = Date.now();
+      const duration = 2500; // 2.5s animation
+      const interval = setInterval(() => {
+        const elapsed = Date.now() - start;
+        const progress = Math.min(1, elapsed / duration);
+        setCurrentDepth(0.1 + progress * 7.9);
+        if (progress >= 1) {
+          clearInterval(interval);
+        }
+      }, 16);
+      return () => clearInterval(interval);
+    } else {
+      setCurrentDepth(8.0);
+    }
+  }, [hole.status, hole.id]);
+
+  const height = currentDepth;
+  const yPos = 4.0 - height / 2;
+
+  return (
+    <group position={[hole.x, 0, hole.z]}>
+      {/* High-Tech Derrick */}
+      <mesh position={[0, 4.25, 0]}>
+        <cylinderGeometry args={[0.15, 0.22, 0.5, 4]} />
+        <meshBasicMaterial color="#FF5722" wireframe />
+      </mesh>
+
+      {/* Wellbore casing cylinder */}
+      {height > 0.05 && (
+        <mesh position={[0, yPos, 0]}>
+          <cylinderGeometry args={[0.07, 0.07, height, 12]} />
+          <meshStandardMaterial 
+            color="#52525b" 
+            roughness={0.15} 
+            metalness={0.85} 
+            clippingPlanes={planes} 
+          />
+        </mesh>
+      )}
+
+      {/* Rotating / Pulsing Drill Bit at the bottom */}
+      {height < 8.0 && (
+        <mesh position={[0, 4.0 - height, 0]}>
+          <coneGeometry args={[0.13, 0.3, 8]} />
+          <meshStandardMaterial 
+            color="#00E5FF" 
+            emissive="#00E5FF" 
+            emissiveIntensity={1.8} 
+            clippingPlanes={planes} 
+          />
+        </mesh>
+      )}
+    </group>
+  );
+}
+
+function EarthGeologicalBlockModel({ sliceZ, planes }: EarthGeologicalBlockModelProps) {
+  const layers = useGeoDataStore(state => state.layers);
+  const points = useGeoDataStore(state => state.points);
+  const faultActive = useGeoDataStore(state => state.faultActive);
+  const faultPositionX = useGeoDataStore(state => state.faultPositionX);
+
+  const stratumRanges = useMemo(() => {
+    if (!layers || layers.length === 0) {
+      return [
+        { name: 'Basement', color: '#7c3aed', hBot: -4, hTop: 4 }
+      ];
+    }
+    const sorted = [...layers].sort((a, b) => b.depthStart - a.depthStart);
+    
+    const minDepth = Math.min(...sorted.map(l => l.depthEnd), -60);
+    const maxDepth = Math.max(...sorted.map(l => l.depthStart), 0);
+    const depthSpan = maxDepth - minDepth || 1;
+
+    const mapDepthToY = (depth: number) => {
+      const pct = (depth - minDepth) / depthSpan;
+      return -4.0 + pct * 8.0;
+    };
+
+    return sorted.map((layer) => ({
+      name: layer.name,
+      color: layer.color,
+      hBot: mapDepthToY(layer.depthEnd),
+      hTop: mapDepthToY(layer.depthStart)
+    }));
+  }, [layers]);
+
+  const getBoundaryHeights = useCallback((x: number, z: number) => {
+    const N = stratumRanges.length;
+    const heights: number[] = [];
+    
+    // Tectonic fault displacement offset
+    let faultDisplacement = 0;
+    if (faultActive) {
+      if (x > faultPositionX) {
+        faultDisplacement = -1.2;
+      } else {
+        faultDisplacement = 0.4;
+      }
+    }
+
+    heights.push(-4.0 + faultDisplacement);
+    
+    for (let k = 1; k <= N; k++) {
+      const targetBot = stratumRanges[k - 1].hBot;
+      const targetTop = stratumRanges[k - 1].hTop;
+      const targetThickness = targetTop - targetBot;
+
+      const depthFactor = 1.0 - Math.abs((targetBot + targetTop) / 8.0);
+      const foldAmp = 0.55 * depthFactor;
+      
+      const fold1 = foldAmp * Math.sin(0.35 * x + k * 0.4) * Math.cos(0.3 * z + k * 0.3);
+      const fold2 = 0.15 * Math.sin(0.8 * x - k * 0.6);
+      const dip = -0.06 * x;
+      
+      let dataPerturbation = 0;
+      if (points && points.length > 0) {
+        let totalWeight = 0;
+        let weightedVal = 0;
+        const samplePts = points.slice(0, 20);
+        for (const pt of samplePts) {
+          const [px, py, pz] = pt.position;
+          const dx = x - px;
+          const dz = z - pz;
+          const dSq = dx * dx + dz * dz + 0.3;
+          const w = 1.0 / dSq;
+          totalWeight += w;
+          weightedVal += py * w;
+        }
+        if (totalWeight > 0) {
+          dataPerturbation = (weightedVal / totalWeight) * 0.25;
+        }
+      }
+
+      const totalUndulation = fold1 + fold2 + dip + dataPerturbation;
+      const undulatedHeight = Math.max(heights[k - 1] + 0.15, heights[k - 1] + targetThickness + totalUndulation);
+      heights.push(undulatedHeight);
+    }
+    return heights;
+  }, [stratumRanges, points, faultActive, faultPositionX]);
+
+  const stratumGeometries = useMemo(() => {
+    const N = stratumRanges.length;
+    const geometries: THREE.BufferGeometry[] = [];
+
+    for (let layerIdx = 0; layerIdx < N; layerIdx++) {
+      const hBottomFn = (x: number, z: number) => {
+        const bounds = getBoundaryHeights(x, z);
+        return bounds[layerIdx];
+      };
+
+      const hTopFn = (x: number, z: number) => {
+        const bounds = getBoundaryHeights(x, z);
+        return bounds[layerIdx + 1];
+      };
+
+      const geo = generateStratumGeometry(16, 16, 16, 16, hBottomFn, hTopFn);
+      geometries.push(geo);
+    }
+
+    return geometries;
+  }, [stratumRanges, getBoundaryHeights]);
+
+  return (
+    <group>
+      {stratumGeometries.map((geo, idx) => {
+        const info = stratumRanges[idx];
+        if (!info) return null;
+
+        return (
+          <group key={`stratum_group_${idx}`}>
+            <mesh geometry={geo}>
+              <meshStandardMaterial 
+                color={info.color} 
+                roughness={0.7} 
+                metalness={0.15} 
+                clippingPlanes={planes}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+
+            <mesh geometry={geo}>
+              <meshBasicMaterial 
+                color="#0c0d10" 
+                wireframe 
+                transparent 
+                opacity={0.16} 
+                clippingPlanes={planes}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+          </group>
+        );
+      })}
+
+      <lineSegments>
+        <edgesGeometry args={[new THREE.BoxGeometry(16, 8, 16)]} />
+        <lineBasicMaterial color="#ffffff" transparent opacity={0.25} />
+      </lineSegments>
+
+      <CompassAxis />
+    </group>
+  );
+}
+
 function GeologicalModel({ sliceZ, activePayload }: { sliceZ: number, activePayload: any }) {
   const points = useGeoDataStore(state => state.points);
+  const faultActive = useGeoDataStore(state => state.faultActive);
+  const faultPositionX = useGeoDataStore(state => state.faultPositionX);
+  const drillHoles = useGeoDataStore(state => state.drillHoles);
+  const setSelectedPoint = useGeoDataStore(state => state.setSelectedPoint);
 
   const planes = useMemo(() => {
-    const zOffset = 12 - (sliceZ / 100) * 24;
-    return [new THREE.Plane(new THREE.Vector3(0, 0, -1), zOffset)];
+    const offset = 8.0 - (sliceZ / 100) * 16.0;
+    return [new THREE.Plane(new THREE.Vector3(0, 0, -1), offset)];
   }, [sliceZ]);
 
   const isScenarioA = useMemo(() => {
@@ -323,36 +731,70 @@ function GeologicalModel({ sliceZ, activePayload }: { sliceZ: number, activePayl
     return false;
   }, [activePayload]);
 
-  if (isTopography) {
-    return <MountainVisualization payload={activePayload} planes={planes} />;
-  }
-
-  if (isScenarioA) {
-    return <PointCloudVisualization payload={activePayload} planes={planes} />;
-  }
-
-  if (isScenarioB) {
-    return <SeismicPlaneVisualization payload={activePayload} planes={planes} />;
-  }
-
-  if (isScenarioC) {
-    return <WellBoreholeVisualization payload={activePayload} planes={planes} />;
-  }
-
   return (
     <group>
-      <mesh position={[0, 0, 0]}>
-        <boxGeometry args={[16, 8, 16]} />
-        <meshBasicMaterial color="#FF5722" wireframe transparent opacity={0.15} />
-      </mesh>
+      <EarthGeologicalBlockModel sliceZ={sliceZ} planes={planes} />
+
+      {/* Red vertical glowing fault plane */}
+      {faultActive && (
+        <mesh position={[faultPositionX, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
+          <planeGeometry args={[16, 8]} />
+          <meshStandardMaterial 
+            color="#ef4444" 
+            transparent 
+            opacity={0.15} 
+            side={THREE.DoubleSide} 
+            roughness={0.1}
+            metalness={0.9}
+            emissive="#ef4444"
+            emissiveIntensity={0.3}
+            clippingPlanes={planes}
+          />
+        </mesh>
+      )}
+
+      {/* Live Drilling Simulation boreholes */}
+      {drillHoles.map((hole) => (
+        <AnimatedDrillHole key={hole.id} hole={hole} planes={planes} />
+      ))}
+
+      {isTopography && (
+        <MountainVisualization payload={activePayload} planes={planes} />
+      )}
+
+      {isScenarioA && (
+        <PointCloudVisualization payload={activePayload} planes={planes} />
+      )}
+
+      {isScenarioB && (
+        <SeismicPlaneVisualization payload={activePayload} planes={planes} />
+      )}
+
+      {isScenarioC && (
+        <WellBoreholeVisualization payload={activePayload} planes={planes} />
+      )}
 
       {points.length > 0 && (
          <group>
           {points.map((pt) => {
             const [x, y, z] = pt.position;
             return (
-              <mesh key={pt.id} position={[x, y, z]}>
-                <sphereGeometry args={[0.2, 8, 8]} />
+              <mesh 
+                key={pt.id} 
+                position={[x, y, z]}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedPoint(pt);
+                }}
+                onPointerOver={(e) => {
+                  e.stopPropagation();
+                  document.body.style.cursor = 'pointer';
+                }}
+                onPointerOut={(e) => {
+                  document.body.style.cursor = 'auto';
+                }}
+              >
+                <sphereGeometry args={[0.22, 12, 12]} />
                 <meshStandardMaterial color={pt.color} emissive={pt.color} emissiveIntensity={0.6} clippingPlanes={planes} />
               </mesh>
             );
@@ -363,54 +805,12 @@ function GeologicalModel({ sliceZ, activePayload }: { sliceZ: number, activePayl
   );
 }
 
-function SafeOrbitControls(props: any) {
-  const { camera, gl } = useThree();
-  const controlsRef = useRef<OrbitControlsJS | null>(null);
-
-  useEffect(() => {
-    // Component Mount Guard: check that gl and its domElement are available
-    if (!gl || !gl.domElement) return;
-
-    const controls = new OrbitControlsJS(camera, gl.domElement);
-    controlsRef.current = controls;
-
-    if (props.enableDamping !== undefined) controls.enableDamping = props.enableDamping;
-    if (props.dampingFactor !== undefined) controls.dampingFactor = props.dampingFactor;
-    if (props.maxPolarAngle !== undefined) controls.maxPolarAngle = props.maxPolarAngle;
-    if (props.minPolarAngle !== undefined) controls.minPolarAngle = props.minPolarAngle;
-    if (props.enableZoom !== undefined) controls.enableZoom = props.enableZoom;
-    if (props.enablePan !== undefined) controls.enablePan = props.enablePan;
-    if (props.enableRotate !== undefined) controls.enableRotate = props.enableRotate;
-
-    return () => {
-      // Always dispose controls on unmount, even if DOM is already detached/modified
-      if (controlsRef.current) {
-        try {
-          controlsRef.current.dispose();
-        } catch (e) {
-          console.warn("Deferred OrbitControls disposal cleaner:", e);
-        }
-        controlsRef.current = null;
-      }
-    };
-  }, [camera, gl, props.enableDamping, props.dampingFactor, props.maxPolarAngle, props.minPolarAngle, props.enableZoom, props.enablePan, props.enableRotate]);
-
-  useFrame(() => {
-    if (controlsRef.current) {
-      controlsRef.current.update();
-    }
-  });
-
-  return null;
-}
-
-
 export default function SpatialTwinEngine({ sliceZ, activePayload, eventSource }: { sliceZ: number, activePayload: any, eventSource: HTMLDivElement | null }) {
   const points = useGeoDataStore(state => state.points);
   return (
     <SceneErrorBoundary>
       <DebugDump data={[]} forceShow={false} />
-      <Canvas eventSource={eventSource || undefined} camera={{ position: [18, 12, 18], fov: 42 }} gl={{ localClippingEnabled: true, antialias: true }}>
+      <Canvas camera={{ position: [18, 12, 18], fov: 42 }} gl={{ localClippingEnabled: true, antialias: true }}>
         <color attach="background" args={['#070709']} />
         <fog attach="fog" args={['#070709', 20, 60]} />
         <ambientLight intensity={0.4} />
@@ -420,7 +820,7 @@ export default function SpatialTwinEngine({ sliceZ, activePayload, eventSource }
           <GeologicalModel sliceZ={sliceZ} activePayload={activePayload} />
         </Center>
         <Grid infiniteGrid fadeDistance={40} fadeStrength={5} cellColor="#222" sectionColor="#333" position={[0, -5, 0]} />
-        <SafeOrbitControls enableDamping dampingFactor={0.05} maxPolarAngle={Math.PI / 2 + 0.1} />
+        <OrbitControls makeDefault enableDamping dampingFactor={0.05} maxPolarAngle={Math.PI} minPolarAngle={0} />
       </Canvas>
     </SceneErrorBoundary>
   );

@@ -91,10 +91,31 @@ export default function MeteorologyModule() {
   const [meteorologyData, setMeteorologyData] = useState<any[]>([]);
 
   useEffect(() => {
+    // Check if we have global uploaded data
+    if (globalData && globalData.meteorologyData && globalData.meteorologyData.length > 0) {
+      setMeteorologyData(globalData.meteorologyData);
+      return;
+    }
+    if (rawPayloads && rawPayloads.meteorologyData) {
+      const result = processIncomingData(rawPayloads.meteorologyData);
+      if (result && result.data && result.data.length > 0) {
+        setMeteorologyData(result.data);
+        return;
+      }
+    }
+
     // Generate data around the baseline pressure and temp
-    const baseTemp = activeStation === "Inland-Desert" ? 35 : activeStation === "Coastal-Basin" ? 22 : 5;
-    // REMOVED MOCK UPDATE
-  }, [activeFileName, activeStation, pressureThreshold]);
+    const rawData = weatherLogs[activeStation]?.hourlyData || [];
+    const pressureOffset = pressureThreshold - 1010;
+    const adjustedData = rawData.map(d => ({
+      ...d,
+      pressure: d.pressure + pressureOffset,
+      rainfall: Number((d.rainProb * 0.15).toFixed(1)),
+      windSpeed: d.windSpeed
+    }));
+    
+    setMeteorologyData(adjustedData);
+  }, [activeFileName, activeStation, pressureThreshold, globalData?.meteorologyData, rawPayloads?.meteorologyData]);
 
   const currentStation = weatherLogs[activeStation];
 

@@ -33,8 +33,56 @@ export default function GPRModule() {
   const [rawWiggleTrace, setRawWiggleTrace] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!globalData.gprData || globalData.gprData.length === 0) setRawWiggleTrace(gprPayload); else setRawWiggleTrace(globalData.gprData);
-  }, [activeFileName, activeTrace, antennaFreq, timeWindow, dielectric]);
+    if (globalData.gprData && globalData.gprData.length > 0) {
+      setRawWiggleTrace(globalData.gprData);
+      return;
+    }
+
+    const maxTime = timeWindow;
+    const traceFraction = activeTrace / 48;
+    
+    // Reflectors at horizontal fractions and base times (ns)
+    const reflectors = [
+      { xf: 0.3, baseT: 30, amp: 0.8 },
+      { xf: 0.65, baseT: 45, amp: 0.65 },
+      { xf: 0.45, baseT: 20, amp: 0.95 }
+    ];
+
+    const list = [];
+    const steps = 60;
+    for (let i = 0; i <= steps; i++) {
+      const timeNs = (maxTime / steps) * i;
+      const velocity = 0.2998 / Math.sqrt(dielectric);
+      const depth = parseFloat((velocity * timeNs / 2).toFixed(2));
+
+      // 1. Direct ground coupling pulse at starting surface
+      let amp = Math.exp(-Math.pow(timeNs / 3, 2)) * 1.0 * Math.sin(timeNs * (antennaFreq / 80));
+
+      // 2. Add reflector hyperbolic hyperbola echoes
+      reflectors.forEach((ref) => {
+        const dx = (traceFraction - ref.xf) * 35;
+        const dyFactor = 0.15 * (dielectric / 4);
+        const expectedTime = Math.sqrt(ref.baseT * ref.baseT + dx * dx * dyFactor);
+        
+        const timeDiff = timeNs - expectedTime;
+        const widthFactor = 1500 / antennaFreq;
+        const pulse = ref.amp * Math.exp(-Math.pow(timeDiff / (widthFactor * 0.8), 2)) * Math.cos(timeDiff * (antennaFreq / 60));
+        amp += pulse;
+      });
+
+      // 3. Ambient ground attenuation and noise
+      const attenuation = Math.exp(-timeNs * 0.015);
+      amp = amp * attenuation + (Math.sin(timeNs * 2.5) * 0.03 + (Math.random() - 0.5) * 0.01);
+
+      list.push({
+        depth: `${depth}m (${timeNs.toFixed(0)}ns)`,
+        timeNs: parseFloat(timeNs.toFixed(1)),
+        amplitude: parseFloat(amp.toFixed(3))
+      });
+    }
+
+    setRawWiggleTrace(list);
+  }, [globalData.gprData, activeFileName, activeTrace, antennaFreq, timeWindow, dielectric]);
 
   const presetLog = gprPayload.map(d => `${d.distance_m},${d.two_way_time_ns},${d.amplitude}`).join("\n");
 

@@ -31,6 +31,9 @@ export default function WellLoggingModule() {
   const { globalData, rawPayloads, activeFileName } = useGlobalGeoContext();
   const [visibleCurves, setVisibleCurves] = useState({ gr: true, res: true, rhob: true, nphi: true, dt: true, cal: true });
   
+  const [grCutoff, setGrCutoff] = useState<number>(65);
+  const [resCutoff, setResCutoff] = useState<number>(15);
+  
   // Use isolated mock
   const chartData = useMemo(() => {
     if (rawPayloads && rawPayloads.wellLoggingData) {
@@ -106,6 +109,70 @@ export default function WellLoggingModule() {
       crossoverDetected: crossover
     };
   }, [chartData, availableKeys]);
+
+  const petroMetrics = useMemo(() => {
+    if (!chartData || chartData.length === 0) {
+      return { netSand: 0, netPay: 0, ntg: 0, avgPorosity: 0, avgSw: 0 };
+    }
+    const grKey = availableKeys.find(k => k.toLowerCase().includes('gamma') || k.toLowerCase() === 'gr' || k.toLowerCase().includes('gr_api') || k.toLowerCase().includes('gamma_ray_api'));
+    const resKey = availableKeys.find(k => k.toLowerCase().includes('resistivity') || k.toLowerCase() === 'res' || k.toLowerCase().includes('res_ohmm') || k.toLowerCase().includes('resistivity_ohm_m'));
+    const rhobKey = availableKeys.find(k => k.toLowerCase().includes('density') || k.toLowerCase() === 'rhob' || k.toLowerCase().includes('density_g_cc') || k.toLowerCase().includes('rhob_gcm3'));
+    
+    let netSandCount = 0;
+    let netPayCount = 0;
+    let sumPorosity = 0;
+    let porosityCount = 0;
+    let sumResistivityForSw = 0;
+    let payResistivityCount = 0;
+
+    chartData.forEach(row => {
+      const grVal = grKey ? Number(row[grKey]) : NaN;
+      const resVal = resKey ? Number(row[resKey]) : NaN;
+      const rhobVal = rhobKey ? Number(row[rhobKey]) : NaN;
+
+      if (!isNaN(grVal)) {
+        const isSand = grVal < grCutoff;
+        if (isSand) {
+          netSandCount++;
+          
+          let phi = 0.15;
+          if (!isNaN(rhobVal)) {
+            const calcPhi = (2.65 - rhobVal) / 1.65;
+            phi = Math.max(0.05, Math.min(0.40, calcPhi));
+          }
+          sumPorosity += phi;
+          porosityCount++;
+
+          const isPay = !isNaN(resVal) && resVal > resCutoff;
+          if (isPay) {
+            netPayCount++;
+            sumResistivityForSw += resVal;
+            payResistivityCount++;
+          }
+        }
+      }
+    });
+
+    const totalIntervals = chartData.length;
+    const ntg = totalIntervals > 0 ? (netSandCount / totalIntervals) : 0;
+    const avgPorosity = porosityCount > 0 ? (sumPorosity / porosityCount) : 0.18;
+    
+    const rw = 0.05;
+    let avgSw = 1.0;
+    if (payResistivityCount > 0 && avgPorosity > 0) {
+      const avgRt = sumResistivityForSw / payResistivityCount;
+      const swSq = rw / (Math.pow(avgPorosity, 2) * avgRt);
+      avgSw = Math.max(0.12, Math.min(1.0, Math.sqrt(swSq)));
+    }
+
+    return {
+      netSand: netSandCount * 10,
+      netPay: netPayCount * 10,
+      ntg: Math.round(ntg * 100),
+      avgPorosity: Math.round(avgPorosity * 100),
+      avgSw: Math.round(avgSw * 100)
+    };
+  }, [chartData, grCutoff, resCutoff, availableKeys]);
 
   return (
     <div className="flex flex-col h-full bg-[#1A1A1A] border border-[#333333] rounded-lg overflow-hidden">
@@ -220,8 +287,8 @@ export default function WellLoggingModule() {
             )}
 
             {/* Interpretation Pane */}
-            <div className="w-64 border-l border-[#333333] p-4 bg-[#111111]/50 space-y-4">
-                <h4 className="text-[10px] font-bold uppercase text-[#888888] mb-4 flex items-center gap-2">
+            <div className="w-64 border-l border-[#333333] p-4 bg-[#111111]/50 space-y-4 overflow-y-auto scrollbar-thin">
+                <h4 className="text-[10px] font-bold uppercase text-[#888888] mb-2 flex items-center gap-2">
                     <BarChart size={12} className="text-[#03A9F4]" />
                     Auto-Lithology
                 </h4>
@@ -231,8 +298,80 @@ export default function WellLoggingModule() {
                     <LithologyZone color="bg-blue-300" label="Carbonate" percentage={carbonatePct} />
                 </div>
 
-                <div className="pt-6">
-                    <h4 className="text-[10px] font-bold uppercase text-[#888888] mb-4 flex items-center gap-2">
+                {/* CUTOFF PETROPHYSICAL SOLVER */}
+                <div className="pt-4 border-t border-[#222]">
+                    <h4 className="text-[10px] font-bold uppercase text-[#FF5722] mb-3 flex items-center gap-2">
+                        <Settings2 size={12} />
+                        Petrophysical Cutoffs
+                    </h4>
+                    
+                    <div className="space-y-3">
+                        {/* Gamma Ray Cutoff Slider */}
+                        <div className="space-y-1">
+                            <div className="flex justify-between text-[9px] font-mono uppercase text-[#888]">
+                                <span>GR Cutoff (Sand)</span>
+                                <span className="text-[#FF5722] font-bold">{grCutoff} API</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                min={30} 
+                                max={110} 
+                                value={grCutoff} 
+                                onChange={(e) => setGrCutoff(Number(e.target.value))}
+                                className="w-full bg-[#222] h-1 rounded-full appearance-none cursor-pointer accent-[#FF5722]"
+                            />
+                        </div>
+
+                        {/* Resistivity Cutoff Slider */}
+                        <div className="space-y-1">
+                            <div className="flex justify-between text-[9px] font-mono uppercase text-[#888]">
+                                <span>Resistivity Cutoff (Pay)</span>
+                                <span className="text-[#03A9F4] font-bold">{resCutoff} Ω·m</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                min={2} 
+                                max={60} 
+                                value={resCutoff} 
+                                onChange={(e) => setResCutoff(Number(e.target.value))}
+                                className="w-full bg-[#222] h-1 rounded-full appearance-none cursor-pointer accent-[#03A9F4]"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Calculated Metrics Readout */}
+                    <div className="mt-4 space-y-2 bg-black/40 border border-[#222] p-2.5 rounded font-mono">
+                        <div className="text-[9px] text-[#555] uppercase font-bold tracking-wider mb-2 border-b border-[#222] pb-1">Petrophysical Evaluation</div>
+                        
+                        <div className="flex justify-between items-center text-[11px]">
+                            <span className="text-gray-400">Net Sand:</span>
+                            <span className="text-yellow-400 font-bold">{petroMetrics.netSand} m</span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-[11px]">
+                            <span className="text-gray-400">Net Pay:</span>
+                            <span className="text-green-400 font-bold">{petroMetrics.netPay} m</span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-[11px]">
+                            <span className="text-gray-400">NTG Ratio:</span>
+                            <span className="text-white font-bold">{petroMetrics.ntg}%</span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-[11px]">
+                            <span className="text-gray-400">Avg Porosity (Φ):</span>
+                            <span className="text-cyan-400 font-bold">{petroMetrics.avgPorosity}%</span>
+                        </div>
+
+                        <div className="flex justify-between items-center text-[11px]">
+                            <span className="text-gray-400">Avg Saturation (Sw):</span>
+                            <span className="text-orange-400 font-bold">{petroMetrics.avgSw}%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="pt-4 border-t border-[#222]">
+                    <h4 className="text-[10px] font-bold uppercase text-[#888888] mb-3 flex items-center gap-2">
                         <Search size={12} className="text-[#03A9F4]" />
                         Fluid Identification
                     </h4>
@@ -243,12 +382,12 @@ export default function WellLoggingModule() {
                         </div>
                     ) : crossoverDetected ? (
                         <div className="p-3 bg-red-500/10 border border-red-500/30 rounded animate-pulse">
-                            <p className="text-[10px] text-red-500 font-bold uppercase mb-1">CROSSOVER DETECTED</p>
+                            <p className="text-[10px] text-red-500 font-bold uppercase mb-1 font-mono">CROSSOVER DETECTED</p>
                             <p className="text-[11px] text-[#FF5722] leading-tight">Potential HYDROCARBON Show Identified at Target Zone!</p>
                         </div>
                     ) : (
                         <div className="p-3 bg-neutral-900 border border-[#333] rounded">
-                            <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">No crossover</p>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase mb-1 font-mono">No crossover</p>
                             <p className="text-[11px] text-[#888888] leading-tight">Water saturation dominant. No obvious hydrocarbon zones detected.</p>
                         </div>
                     )}

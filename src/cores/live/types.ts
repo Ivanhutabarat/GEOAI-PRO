@@ -16,7 +16,9 @@ export enum GeoModule {
   GAS_AIR_QUALITY = 'gas-air',
   AI_CONSULTANT = 'ai-consultant',
   SIMULATION = 'simulation',
-  DIAGNOSTICS = 'diagnostics'
+  DIAGNOSTICS = 'diagnostics',
+  SECURITY = 'security',
+  MANUAL_BOOK = 'manual-book'
 }
 
 export type GeoFileType = 

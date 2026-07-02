@@ -73,13 +73,42 @@ export default function GeochemModule() {
 SMP-108, 900, 38.4, 15.2, 18.3, 14.2, 12.1, 4.0
 SMP-110, 1050, 41.2, 11.5, 16.4, 15.5, 10.4, 3.8`;
 
+  const currentData = samplesData[activeSample];
+
   const [geochemData, setGeochemData] = useState<any[]>([]);
 
   useEffect(() => {
-    // REMOVED MOCK UPDATE
-  }, [activeFileName, acidInflow]);
+    // Check if we have global uploaded data
+    if (globalData && globalData.geochemData && globalData.geochemData.length > 0) {
+      setGeochemData(globalData.geochemData);
+      return;
+    }
+    if (rawPayloads && rawPayloads.geochemData) {
+      const result = processIncomingData(rawPayloads.geochemData);
+      if (result && result.data && result.data.length > 0) {
+        setGeochemData(result.data);
+        return;
+      }
+    }
 
-  const currentData = samplesData[activeSample];
+    // Otherwise, generate 10 depth levels around currentData.depth
+    const sampleDepth = currentData?.depth || 500;
+    const basePh = acidInflow; // use current pH slider value
+    const depths = Array.from({ length: 10 }, (_, i) => {
+      const depth = sampleDepth - 100 + i * 25;
+      // Sulfate and chloride concentrations are inversely related to pH
+      const sulfate = Math.round(150 + (7 - basePh) * 45 + Math.random() * 15);
+      const chloride = Math.round(80 + (7 - basePh) * 25 + Math.random() * 10);
+      const ph = Number((basePh + (i - 5) * 0.1 + Math.random() * 0.1).toFixed(2));
+      return {
+        depth,
+        sulfate,
+        chloride,
+        ph: Math.min(7, Math.max(1, ph))
+      };
+    });
+    setGeochemData(depths);
+  }, [activeFileName, acidInflow, activeSample, globalData?.geochemData, rawPayloads?.geochemData, currentData]);
 
   // Ternary calculations for QFL classification:
   // normalized sum: SiO2 (Quartz) + Alkalies/Al2O3 (Feldspar) + Fe/Mg/Ca (Lithic)

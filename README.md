@@ -111,6 +111,6 @@ The **WhatsAppBotMenu** (bottom-right toggle) provides direct control over the t
   
   *Designed, coded, and architected by* **GeoAI Pro Coordinator**.  
   ***Secure licensing active. Zero-compromise workstation standard enabled.***
-  *Hasil ini dibuat oleh GEOAI by Ivan Hutabarat*
+  *Hasil ini dibuat oleh GEOAI by [DEV_FULLNAME]*
   
 </div>

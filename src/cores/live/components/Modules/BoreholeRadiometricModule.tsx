@@ -52,10 +52,32 @@ export default function BoreholeRadiometricModule() {
   const [radiometricData, setRadiometricData] = useState<any[]>([]);
 
   useEffect(() => {
-    const finalUranium = isManual ? parseFloat(gammaIntensity) / 20 : inferredGamma / 20;
-    const finalThorium = isManual ? parseFloat(oreDensity) * 10 : inferredOreDensity * 10;
-    // REMOVED MOCK UPDATE
-  }, [globalData, gammaIntensity, oreDensity, inferredGamma, inferredOreDensity, isManual]);
+    const finalGamma = isManual ? (parseFloat(gammaIntensity) || inferredGamma) : inferredGamma;
+    const finalDensity = isManual ? (parseFloat(oreDensity) || inferredOreDensity) : inferredOreDensity;
+    const finalDepth = isManual ? (parseFloat(depthTarget) || inferredDepthTarget) : inferredDepthTarget;
+
+    const simulatedList = [];
+    for (let i = 1; i <= 20; i++) {
+      const depth = Math.round((finalDepth / 20) * i);
+      
+      // Introduce an ore body peak at 60-70% depth
+      const targetFactor = Math.exp(-Math.pow((i - 13) / 3, 2));
+      
+      const uranium = parseFloat(( (finalGamma / 45) * (1.0 + targetFactor * 4.5) + Math.sin(i * 1.1) * 2 ).toFixed(2));
+      const thorium = parseFloat(( (finalDensity * 6) * (1.0 + targetFactor * 2.1) + Math.cos(i * 0.9) * 1.5 ).toFixed(2));
+      const potassium = parseFloat(( (1.2 + (finalGamma / 1000) * 1.5 + Math.sin(i * 0.5) * 0.4) ).toFixed(2));
+      const clayVolume = Math.round(Math.min(100, Math.max(0, (uranium * 0.4 + thorium * 1.2 + Math.sin(i * 0.7) * 8))));
+
+      simulatedList.push({
+        depth,
+        uranium: Math.max(0.1, uranium),
+        thorium: Math.max(0.1, thorium),
+        potassium: Math.max(0.01, potassium),
+        clayVolume
+      });
+    }
+    setRadiometricData(simulatedList);
+  }, [gammaIntensity, oreDensity, depthTarget, inferredGamma, inferredOreDensity, inferredDepthTarget, isManual]);
 
   const [validationError, setValidationError] = useState<string>('');
   const [isTransmitting, setIsTransmitting] = useState<boolean>(false);

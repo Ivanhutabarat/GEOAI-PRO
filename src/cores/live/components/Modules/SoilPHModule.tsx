@@ -237,13 +237,13 @@ export default function SoilPHModule() {
             <div className="bg-[#111112] border border-[#222] p-3 rounded">
               <span className="block text-[8px] font-mono uppercase text-[#666]">CHEMICAL pH LEVEL</span>
               <p className="text-sm font-mono font-bold text-white mt-1">
-                {phValue} ({parseFloat(phValue) < 7 ? 'ACIDIC' : (parseFloat(phValue) > 7 ? 'ALKALINE' : 'NEUTRAL')})
+                {(phValue === '' ? inferredPhValue : parseFloat(phValue)).toFixed(2)} ({(phValue === '' ? inferredPhValue : parseFloat(phValue)) < 6.8 ? 'ACIDIC' : ((phValue === '' ? inferredPhValue : parseFloat(phValue)) > 7.2 ? 'ALKALINE' : 'NEUTRAL')})
               </p>
             </div>
             <div className="bg-[#111112] border border-[#222] p-3 rounded">
               <span className="block text-[8px] font-mono uppercase text-[#666]">REMEDIATION CONSTRAINTS</span>
               <p className="text-sm font-mono font-bold text-[#00E676] mt-1">
-                {parseFloat(phValue) < 5.0 ? 'LIME AGENT DOSING' : (parseFloat(phValue) > 8.5 ? 'SULFUR DOSING' : 'STABLE ECO-BASIN')}
+                {(phValue === '' ? inferredPhValue : parseFloat(phValue)) < 5.0 ? 'LIME AGENT DOSING' : ((phValue === '' ? inferredPhValue : parseFloat(phValue)) > 8.5 ? 'SULFUR DOSING' : 'STABLE ECO-BASIN')}
               </p>
             </div>
           </div>

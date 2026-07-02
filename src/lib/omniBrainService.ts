@@ -86,6 +86,32 @@ export function generateMockResponse(payload: InferencePayload): any {
       };
     });
 
+    const userMsg = (body.message || "").toLowerCase();
+    const isStormy = activeModule.toLowerCase().includes('meteorology') || userMsg.includes('badai') || userMsg.includes('cuaca') || userMsg.includes('evacuate');
+    const isDrillProtest = userMsg.includes('titik') || userMsg.includes('drill') || userMsg.includes('investor') || userMsg.includes('sesar') || userMsg.includes('patahan');
+
+    if (isStormy) {
+      fallbackDebate.push({
+        agent: "Prof. Dwikorita (BMKG Climatology Director)",
+        role: "Climatology & Hazard Lead",
+        faction: "🏛️ GOVERNMENT & REGULATORS",
+        stance: "CON",
+        reasoning: "Extreme wind shear and cyclone warning active.",
+        content: "[MATH CORE] Cyclone alert calibrated offline. Wind velocity 95 km/h exceeds safe structural limit of 50 km/h. Running barometric gradient dP/dt = -3.5 hPa/hr, confirming imminent landfall. We mandate immediate evacuation of the drilling pad.",
+        avatar: "BMK"
+      });
+    } else if (isDrillProtest) {
+      fallbackDebate.push({
+        agent: "Ir. Bambang (SKK Migas Senior Regulator)",
+        role: "Compliance & Safety Auditor",
+        faction: "🏛️ GOVERNMENT & REGULATORS",
+        stance: "NEUTRAL",
+        reasoning: "Licensing and geomechanical integrity audit triggered.",
+        content: "[MATH CORE] Audit verification initiated offline. With a fault probability of 0.98 at Grid Y:30, starting operations will trigger an immediate suspension under Section 12-B. The pore pressure drop exceeds the safety threshold. We require a complete geomechanical hold.",
+        avatar: "SKK"
+      });
+    }
+
     return {
       ok: true,
       status: 200,
@@ -99,10 +125,10 @@ export function generateMockResponse(payload: InferencePayload): any {
 
   if (endpoint.includes('/api/master-synthesize')) {
     const message = body.message || '';
-    let reply = `### SYSTEM OMNI-BRAIN SYNTHESIS REPORT\n\nAnalysed geological parameters and historical precedents offline. No major anomalous features detected.\n\n- **Stability:** Stable crustal foundation.\n- **Risk Factor:** Low (0.02% variance).\n- **Coprocessing:** Local constraints optimized for 100% offline simulation.`;
+    let reply = `### SYSTEM OMNI-BRAIN SYNTHESIS REPORT\n\n[OMNI-BRAIN LOCAL CORE] Analysed geological parameters offline. No single decision dominates; all conflicting faction data is weighted with equal status.\n\n- **Stability Parameters:** Standard crustal structures evaluated.\n- **HSE & Capital Spectrum:** Complete balance maintained. Operational targets and geomechanical safety thresholds are in direct dialogue.\n- **Arbitration Stance:** Strictly neutral. Faction perspectives must be negotiated through the primary debate boards.`;
     
-    if (message.toLowerCase().includes('anomaly') || message.toLowerCase().includes('critical') || message.toLowerCase().includes('leak')) {
-      reply = `### ⚠️ CRITICAL ANOMALY ALERT\n\n[OMNI-BRAIN LOCAL CORE] has detected a localized stress signature matching past seismic events.\n\n- **Fault Slippage Risk:** Elevated (+12% tension variance).\n- **Atmospheric Gas:** Trace levels of hydrogen sulfide detected close to drilling threshold.\n- **Action Protocol:** Adjust mud casing pressure and active dampening shields accordingly.`;
+    if (message.toLowerCase().includes('anomaly') || message.toLowerCase().includes('critical') || message.toLowerCase().includes('leak') || message.toLowerCase().includes('badai') || message.toLowerCase().includes('sesar') || message.toLowerCase().includes('evacuate')) {
+      reply = `### ⚠️ CRITICAL BOARDROOM TENSION ALERT\n\n[OMNI-BRAIN LOCAL CORE] has detected a major conflict in strategic directives.\n\n- **Corporate Objective:** Complete operational continuity to secure reserves.\n- **Environmental & Safety Boundary:** Severe active risk (atmospheric wind, fault slippage probability, or compaction hazards).\n- **Arbitration Directive:** The AI Master remains strictly neutral. Both Proceeding and Evacuating options carry significant, valid weight and catastrophic risks on either side. A boardroom vote or manual consensus is required to resolve this friction.`;
     }
     return {
       ok: true,

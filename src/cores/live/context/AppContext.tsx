@@ -42,18 +42,32 @@ interface AppContextType {
 export const AppContext = createContext<AppContextType | null>(null);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [apiMode, setApiMode] = useState<ApiMode>('LIVE');
+  const [apiMode, setApiMode] = useState<ApiMode>(() => {
+    try {
+      const saved = localStorage.getItem('geoai_mode');
+      return (saved === 'LIVE' || saved === 'DUMMY') ? saved : 'LIVE';
+    } catch (e) {
+      return 'LIVE';
+    }
+  });
   const [dimensionMode, setDimensionMode] = useState<DimensionMode>('2D');
   const [engineKey, setEngineKey] = useState<number>(0);
 
-  const toggleApiMode = () => { localStorage.setItem('geoai_mode', 'DUMMY'); window.location.reload(); };
+  const toggleApiMode = () => {
+    const nextMode = apiMode === 'LIVE' ? 'DUMMY' : 'LIVE';
+    try {
+      localStorage.setItem('geoai_mode', nextMode);
+    } catch (e) {}
+    setApiMode(nextMode);
+    window.location.reload();
+  };
 
   const toggleDimensionMode = () => {
     setDimensionMode(prev => prev === '3D' ? '2D' : '3D');
   };
 
   const engine = useMemo(() => {
-    return true ? liveEngine : dummyEngine;
+    return apiMode === 'LIVE' ? liveEngine : dummyEngine;
   }, [apiMode]);
 
   return (

@@ -1,6 +1,4 @@
 node_modules/
-# dist/
-# dist-ssr/
 .cache/
 .vite/
 .env*
@@ -13,3 +11,6 @@ sessions/
 coverage/
 .DS_Store
 *.log
+
+
+
